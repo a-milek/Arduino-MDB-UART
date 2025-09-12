@@ -4,9 +4,7 @@
  * Created: 18.05.2019 09:47:09
  *  Author: root
  */ 
-#define F_CPU 16000000UL // Clock Speed
-#define BAUD 9600
-#define MYUBRR F_CPU/16/BAUD-1
+#include "config.h"
 
 #include <avr/io.h>
 #include <util/delay.h>
@@ -23,15 +21,19 @@
 
 
 
-void MDB_Setup() {
-	// Set 9600-9-N-1 UART mode
-	MDB_UBRRH = (MYUBRR>>8);
-	MDB_UBRRL = MYUBRR;
-	MDB_UCSR_A &= ~(1 << U2X0);// Disable USART rate doubler
-	MDB_UCSR_C = (0<<UMSEL1)|(0<<UMSEL0)|(0<<UPM1)|(0<<UPM0)|(0<<USBS)|(1<<UCSZ1)|(1<<UCSZ0);
+void MDB_Setup(void)
+{
+	// Baud rate 9600
+	USART1.BAUD = (uint16_t)((float)F_CPU * 64 / (16 * 9600) + 0.5);
 
-	MDB_UCSR_B |= (1<<UCSZ2)|(1<<RXEN)|(1<<TXEN); // 9bit
-}
+	// Control C: async, no parity, 1 stop bit
+	USART1.CTRLC = USART_CMODE_ASYNCHRONOUS_gc |
+	USART_PMODE_DISABLED_gc |
+	USART_SBMODE_1BIT_gc;
+
+	// Control B: enable RX and TX, 9-bit size
+	 USART1.CTRLB = USART_TXEN_bm | USART_RXEN_bm | USART_RXMODE_NORMAL_gc;
+	 USART1.CTRLB |= (1 << USART_RXMODE0_bp); // enable 9-bit (sets UCSZ2)}
 
 
 void EXT_UART_Transmit(uint8_t data[])
