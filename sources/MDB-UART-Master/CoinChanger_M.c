@@ -5,7 +5,8 @@
  *  Author: root
  */ 
 #include "config.h"
-
+#include "utils.h"
+#include <stdlib.h>
 
 #include <avr/io.h>
 #include <util/delay.h>
@@ -19,6 +20,7 @@
 #include "CoinChanger_M.h"
 #include "LEDControl_M.h"
 #include "Settings_M.h"
+#include "utils.h"
 
 uint8_t CoinChangerInManualFillOrPaymentMode = 0;
 
@@ -38,7 +40,8 @@ void GetCoinChangerSetupData()
 			CoinChangerDevice.OfflinePollsCount = 5;
 			CoinChangerSetupData.CoinChangerFeatureLevel = MDB_BUFFER[0].data;
 			uint8_t cocd[2] = {MDB_BUFFER[1].data, MDB_BUFFER[2].data};
-			CoinChangerSetupData.CountryOrCurrencyCode = BCDByteToInt(cocd);
+				
+			CoinChangerSetupData.CountryOrCurrencyCode = BCDByteToInt(cocd, sizeof(cocd));
 			CoinChangerSetupData.CoinScalingFactor = MDB_BUFFER[3].data;
 			CoinChangerSetupData.DecimalPlaces = MDB_BUFFER[4].data;
 			uint16_t tmpcr  = MDB_BUFFER[5].data;
@@ -54,9 +57,9 @@ void GetCoinChangerSetupData()
 			char tmpstr[80];
 			uint8_t mcvbuff[5 + CoinChangerSetupData.DecimalPlaces];
 			double mindispvalue = CoinChangerSetupData.CoinScalingFactor / pow(10, CoinChangerSetupData.DecimalPlaces);
-			dtostrf(mindispvalue,0,CoinChangerSetupData.DecimalPlaces,mcvbuff);
+			dtostrf(mindispvalue,0,CoinChangerSetupData.DecimalPlaces,(char*)mcvbuff);
 			sprintf(tmpstr,"CC*CFG*%d*%d*%s\r\n", CoinChangerSetupData.CoinChangerFeatureLevel, CoinChangerSetupData.CountryOrCurrencyCode, mcvbuff);
-			EXT_UART_Transmit(tmpstr);
+			EXT_UART_Transmit_S(tmpstr);
 			for (int i = 0; i < 16; i++)
 			{
 				if (CoinChangerSetupData.CoinsRouteable[i] == 1)
@@ -64,8 +67,8 @@ void GetCoinChangerSetupData()
 					uint8_t cvbuff[10 + CoinChangerSetupData.DecimalPlaces];
 					uint8_t buff[18 + sizeof(cvbuff)];
 					double coinvalue = (CoinChangerSetupData.CoinScalingFactor * CoinChangerSetupData.CoinTypeCredit[i]) / pow(10, CoinChangerSetupData.DecimalPlaces);
-					dtostrf(coinvalue,0,CoinChangerSetupData.DecimalPlaces,cvbuff);
-					sprintf(buff,"CC*COINSUP*%d*%s*%d*%d\r\n",i + 1,cvbuff,(CoinChangerOptions.EnableAcceptCoinsBits >> i) & 0x01,(CoinChangerOptions.EnableDispenseCoinsBits >> i) & 0x01);
+					dtostrf(coinvalue,0,CoinChangerSetupData.DecimalPlaces,(char*)cvbuff);
+					sprintf_FSTR(buff,"CC*COINSUP*%d*%s*%d*%d\r\n",i + 1,cvbuff,(CoinChangerOptions.EnableAcceptCoinsBits >> i) & 0x01,(CoinChangerOptions.EnableDispenseCoinsBits >> i) & 0x01);
 					EXT_UART_Transmit(buff);
 				}
 			}
@@ -78,7 +81,7 @@ void GetCoinChangerSetupData()
 		}
 	} else 
 	{
-		EXT_UART_Transmit("CC*CFGERR");
+		EXT_UART_Transmit_S("CC*CFGERR");
 		EXT_CRLF();
 		if (CoinChangerDevice.OfflinePollsCount > 0) CoinChangerDevice.OfflinePollsCount--;
 	}
@@ -100,15 +103,16 @@ void GetCoinChangerTubeStatus()
 			fullflags = (fullflags << 8) | MDB_BUFFER[1].data;
 			for (int i = 2; i < MDB_BUFFER_COUNT - 1; i++)
 			{
-				if ((MDB_BUFFER[i].data != 0) || (fullflags & (1 << (i - 2)) == 1))
+				if ((MDB_BUFFER[i].data != 0) || ((fullflags & (1 << (i - 2))) == 1))
+
 				{
 					uint8_t tmpstr[32];
 					uint8_t buff[5 + CoinChangerSetupData.DecimalPlaces];
 					double coinvalue = (CoinChangerSetupData.CoinScalingFactor * CoinChangerSetupData.CoinTypeCredit[i - 2]) / pow(10, CoinChangerSetupData.DecimalPlaces);
-					dtostrf(coinvalue,0,CoinChangerSetupData.DecimalPlaces,buff);
-					sprintf(tmpstr,"CC*TUBE*%d*%s*%d*%d", i - 1, buff, MDB_BUFFER[i].data, fullflags & (1 << (i - 2)));
-					if ((MDB_BUFFER[i].data == 0x00) && (fullflags & (1 << (i - 2)) == 1)) EXT_UART_Transmit("*ERR");
-					EXT_UART_Transmit(tmpstr);
+					dtostrf(coinvalue,0,CoinChangerSetupData.DecimalPlaces,(char*)buff);
+					sprintf_FSTR(tmpstr,"CC*TUBE*%d*%s*%d*%d", i - 1, buff, MDB_BUFFER[i].data, fullflags & (1 << (i - 2)));
+					if ((MDB_BUFFER[i].data == 0x00) && ((fullflags & (1 << (i - 2))) == 1)) EXT_UART_Transmit_S("*ERR");
+					EXT_UART_Transmit_S((char*)tmpstr);
 					EXT_CRLF();
 				}
 			}
@@ -118,7 +122,7 @@ void GetCoinChangerTubeStatus()
 			}
 		}
 		} else {
-		EXT_UART_Transmit("CC*TUBERR");
+		EXT_UART_Transmit_S("CC*TUBERR");
 		EXT_CRLF();
 		if (CoinChangerDevice.OfflinePollsCount > 0) CoinChangerDevice.OfflinePollsCount--;
 	}
@@ -128,7 +132,7 @@ void CoinChangerPollResponse()
 {
 	CoinChangerDevice.OfflinePollsCount = 5;
 	uint8_t tmpstr[64];
-	uint8_t cvbuff[8];
+	//uint8_t cvbuff[8];
 	uint16_t tmplen = MDB_BUFFER_COUNT;
 	MDB_Byte TMP[tmplen];
 	memcpy(&TMP, &MDB_BUFFER, MDB_BUFFER_COUNT * 2);
@@ -137,8 +141,8 @@ void CoinChangerPollResponse()
 		if ((TMP[i].data >> 5) == 1)
 		{
 			uint16_t slugs = (TMP[i].data & 0x1f);
-			sprintf(tmpstr,"CC*SLUG*%d", slugs);
-			EXT_UART_Transmit(tmpstr);
+			sprintf_FSTR(tmpstr,"CC*SLUG*%d", slugs);
+			EXT_UART_Transmit_S((char*)tmpstr);
 			EXT_CRLF();
 		}
 		if ((TMP[i].data >> 4) == 0)
@@ -147,37 +151,37 @@ void CoinChangerPollResponse()
 			switch (TMP[i].data & 0x0f)
 			{
 				case 1:
-				sprintf(statusbuff,"%s", "ESCROWREQ");
+				sprintf((char*)statusbuff,"%s", "ESCROWREQ");
 				break;
 				case 2:
-				sprintf(statusbuff,"%s", "PAYOUTBUSY");
+				sprintf((char*)statusbuff,"%s", "PAYOUTBUSY");
 				break;
 				case 3:
-				sprintf(statusbuff,"%s", "NOCREDIT");
+				sprintf((char*)statusbuff,"%s", "NOCREDIT");
 				break;
 				case 4:
-				sprintf(statusbuff,"%s", "BADTUBESENSOR");
+				sprintf((char*)statusbuff,"%s", "BADTUBESENSOR");
 				break;
 				case 5:
-				sprintf(statusbuff,"%s", "DOUBLECOIN");
+				sprintf((char*)statusbuff,"%s", "DOUBLECOIN");
 				break;
 				case 6:
-				sprintf(statusbuff,"%s", "UNPLUGGED");
+				sprintf((char*)statusbuff,"%s", "UNPLUGGED");
 				break;
 				case 7:
-				sprintf(statusbuff,"%s", "TUBEJAM");
+				sprintf((char*)statusbuff,"%s", "TUBEJAM");
 				break;
 				case 8:
-				sprintf(statusbuff,"%s", "ROMERROR");
+				sprintf((char*)statusbuff,"%s", "ROMERROR");
 				break;
 				case 9:
-				sprintf(statusbuff,"%s", "ROUTERROR");
+				sprintf((char*)statusbuff,"%s", "ROUTERROR");
 				break;
 				case 10:
-				sprintf(statusbuff,"%s", "BUSY");
+				sprintf((char*)statusbuff,"%s", "BUSY");
 				break;
 				case 11:
-				sprintf(statusbuff,"%s", "JUSTRESET");
+				sprintf((char*)statusbuff,"%s", "JUSTRESET");
 				//The following initialization sequence is recommended for all new VMCs
 				//designed after July, 2000. It should be used after “power up”, after issuing
 				//the RESET command, after issuing the Bus Reset (pulling the transmit line
@@ -185,8 +189,8 @@ void CoinChangerPollResponse()
 				//“JUST RESET” response (i.e., peripheral self resets).
 				CoinChangerDevice.Status = 1;
 				CoinChangerDevice.OfflinePollsCount = 5;
-				sprintf(tmpstr,"CC*STATUS*%s\r\n", &statusbuff);
-				EXT_UART_Transmit(tmpstr);
+				sprintf_FSTR(tmpstr,"CC*STATUS*%s\r\n", &statusbuff);
+				EXT_UART_Transmit_S((char*)tmpstr);
 				GetCoinChangerSetupData();
 				if (CoinChangerSetupData.CoinChangerFeatureLevel >= 2)
 				{
@@ -198,14 +202,14 @@ void CoinChangerPollResponse()
 				GetCoinChangerTubeStatus();
 				return;
 				case 12:
-				sprintf(statusbuff,"%s", "COINJAM");
+				sprintf((char*)statusbuff,"%s", "COINJAM");
 				break;
 				case 13:
-				sprintf(statusbuff,"%s", "FISHING");
+				sprintf((char*)statusbuff,"%s", "FISHING");
 				break;
 			}
-			sprintf(tmpstr,"CC*STATUS*%s", &statusbuff);
-			EXT_UART_Transmit(tmpstr);
+			sprintf_FSTR(tmpstr,"CC*STATUS*%s", &statusbuff);
+			EXT_UART_Transmit_S((char*)tmpstr);
 			EXT_CRLF();
 		}
 		if ((TMP[i].data >> 7) == 1)
@@ -215,9 +219,9 @@ void CoinChangerPollResponse()
 			uint8_t cointype = TMP[i].data & 0x0f;
 			uint8_t cvbuff[5 + CoinChangerSetupData.DecimalPlaces];
 			double coinvalue = (CoinChangerSetupData.CoinScalingFactor * CoinChangerSetupData.CoinTypeCredit[cointype]) / pow(10, CoinChangerSetupData.DecimalPlaces);
-			dtostrf(coinvalue,0,CoinChangerSetupData.DecimalPlaces,cvbuff);
-			sprintf(tmpstr,"CC*MANUALDISP*%d*%s*%d*%d", cointype + 1, cvbuff, cdmnumber, coinsintube);
-			EXT_UART_Transmit(tmpstr);
+			dtostrf(coinvalue,0,CoinChangerSetupData.DecimalPlaces,(char*)cvbuff);
+			sprintf_FSTR(tmpstr,"CC*MANUALDISP*%d*%s*%d*%d", cointype + 1, cvbuff, cdmnumber, coinsintube);
+			EXT_UART_Transmit_S((char*)tmpstr);
 			EXT_CRLF();
 			i++;
 		} else if ((TMP[i].data >> 6) == 1)
@@ -227,25 +231,25 @@ void CoinChangerPollResponse()
 			uint8_t cointype = TMP[i].data & 0x0f;
 			uint8_t cvbuff[5 + CoinChangerSetupData.DecimalPlaces];
 			double coinvalue = (CoinChangerSetupData.CoinScalingFactor * CoinChangerSetupData.CoinTypeCredit[cointype]) / pow(10, CoinChangerSetupData.DecimalPlaces);
-			dtostrf(coinvalue,0,CoinChangerSetupData.DecimalPlaces,cvbuff);
+			dtostrf(coinvalue,0,CoinChangerSetupData.DecimalPlaces,(char*)cvbuff);
 			uint8_t routbuff[10];
 			switch (coinrouting)
 			{
 				case 0:
-				sprintf(routbuff,"%s", "CASHBOX");
+				sprintf((char*)routbuff,"%s", "CASHBOX");
 				break;
 				case 1:
-				sprintf(routbuff,"%s", "TUBE");
+				sprintf((char*)routbuff,"%s", "TUBE");
 				break;
 				case 2:
-				sprintf(routbuff,"%s", "NA");
+				sprintf((char*)routbuff,"%s", "NA");
 				break;
 				case 3:
-				sprintf(routbuff,"%s", "REJECT");
+				sprintf((char*)routbuff,"%s", "REJECT");
 				break;
 			}
-			sprintf(tmpstr,"CC*DEPOSIT*%d*%s*%s*%d", cointype + 1, &cvbuff, &routbuff, coinsintube);
-			EXT_UART_Transmit(tmpstr);
+			sprintf_FSTR(tmpstr,"CC*DEPOSIT*%d*%s*%s*%d", cointype + 1, &cvbuff, &routbuff, coinsintube);
+			EXT_UART_Transmit_S((char*)tmpstr);
 			EXT_CRLF();
 			i++;
 		}
@@ -260,8 +264,8 @@ void CoinChangerEnableCoinType(uint8_t CoinType, uint8_t EnableAccept, uint8_t E
 	WriteCoinChangerOptions();
 	uint8_t cvbuff[5 + CoinChangerSetupData.DecimalPlaces];
 	double coinvalue = (CoinChangerSetupData.CoinScalingFactor * CoinChangerSetupData.CoinTypeCredit[CoinType - 1]) / pow(10, CoinChangerSetupData.DecimalPlaces);
-	dtostrf(coinvalue,0,CoinChangerSetupData.DecimalPlaces,cvbuff);
-	sprintf(buff,"CC*COINCFG*%d*%s*%d*%d*", CoinType, cvbuff, (EnableAccept == 1), (EnableDispense == 1));
+	dtostrf(coinvalue,0,CoinChangerSetupData.DecimalPlaces,(char*)cvbuff);
+	sprintf_FSTR(buff,"CC*COINCFG*%d*%s*%d*%d*", CoinType, cvbuff, (EnableAccept == 1), (EnableDispense == 1));
 	EXT_UART_Transmit(buff);
 	EXT_UART_OK();
 }
@@ -279,7 +283,7 @@ void CoinChangerEnableAcceptCoins()
 	while (!MDBReceiveComplete){
 		MDB_read();
 	}
-	EXT_UART_Transmit("CC*ENABLE*");
+	EXT_UART_Transmit_S("CC*ENABLE*");
 	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 	{
 		if (MDB_BUFFER_COUNT == 1 && MDB_BUFFER[0].data == 0x00)
@@ -306,7 +310,7 @@ void CoinChangerDisableAcceptCoins()
 	while (!MDBReceiveComplete){
 		MDB_read();
 	}
-	EXT_UART_Transmit("CC*DISABLE*");
+	EXT_UART_Transmit_S("CC*DISABLE*");
 	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 	{
 		if (MDB_BUFFER_COUNT == 1 && MDB_BUFFER[0].data == 0x00)
@@ -333,7 +337,7 @@ void CoinChangerDispense(uint8_t DispenseParams)
 	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 	{
 		CoinChangerDevice.OfflinePollsCount = 5;
-		EXT_UART_Transmit("CC*DISPENSE*");
+		EXT_UART_Transmit_S("CC*DISPENSE*");
 		switch (MDB_BUFFER[0].data)
 		{
 			case 0x00:
@@ -344,13 +348,13 @@ void CoinChangerDispense(uint8_t DispenseParams)
 			EXT_UART_NAK();
 			break;
 			default:
-			EXT_UART_Transmit("UNKNOWN");
+			EXT_UART_Transmit_S("UNKNOWN");
 			EXT_CRLF();
 			break;
 		}
 	} else
 	{
-		EXT_UART_Transmit("CC*DISPENSE*FAIL");
+		EXT_UART_Transmit_S("CC*DISPENSE*FAIL");
 		EXT_CRLF();
 		if (CoinChangerDevice.OfflinePollsCount > 0) CoinChangerDevice.OfflinePollsCount--;
 	}
@@ -367,7 +371,7 @@ void CoinChangerAlternativePayout(uint8_t PayoutValue)
 	while (!MDBReceiveComplete){
 		MDB_read();
 	}
-	EXT_UART_Transmit("CC*SUMPAYOUT*");
+	EXT_UART_Transmit_S("CC*SUMPAYOUT*");
 	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 	{
 		CoinChangerDevice.OfflinePollsCount = 5;
@@ -403,13 +407,13 @@ void CoinChangerAlternativePayoutStatus()
 				if (MDB_BUFFER[i].data > 0)
 				{
 					uint8_t tmpstr[10 + CoinChangerSetupData.DecimalPlaces];
-					EXT_UART_Transmit("CC*PAYSTATUS");
+					EXT_UART_Transmit_S("CC*PAYSTATUS");
 					uint8_t cvbuff[5 + CoinChangerSetupData.DecimalPlaces];
 					double coinvalue = (CoinChangerSetupData.CoinScalingFactor * CoinChangerSetupData.CoinTypeCredit[i]) / pow(10, CoinChangerSetupData.DecimalPlaces);
-					dtostrf(coinvalue,0,CoinChangerSetupData.DecimalPlaces,cvbuff);
-					sprintf(tmpstr,"*%s", cvbuff);
-					EXT_UART_Transmit(tmpstr);
-					sprintf(cvbuff,"*%d", MDB_BUFFER[i].data);
+					dtostrf(coinvalue,0,CoinChangerSetupData.DecimalPlaces,(char*)cvbuff);
+					sprintf((char*)tmpstr,"*%s", cvbuff);
+					EXT_UART_Transmit_S((char*)tmpstr);
+					sprintf((char*)cvbuff,"*%d", MDB_BUFFER[i].data);
 					EXT_UART_Transmit(cvbuff);
 					EXT_CRLF();
 				}
@@ -417,12 +421,12 @@ void CoinChangerAlternativePayoutStatus()
 			GetCoinChangerTubeStatus();
 		} else
 		{
-			EXT_UART_Transmit("CC*PAYSTATUS*BUSY");
+			EXT_UART_Transmit_S("CC*PAYSTATUS*BUSY");
 			EXT_CRLF();
 		}
 	} else
 	{
-		EXT_UART_Transmit("CC*PAYSTATUS*FAIL");
+		EXT_UART_Transmit_S("CC*PAYSTATUS*FAIL");
 		EXT_CRLF();
 		if (CoinChangerDevice.OfflinePollsCount > 0) CoinChangerDevice.OfflinePollsCount--;
 	}
@@ -446,20 +450,20 @@ void CoinChangerAlternativePayoutValue()
 			CoinChangerDevice.OfflinePollsCount = 5;
 			uint8_t cvbuff[5 + CoinChangerSetupData.DecimalPlaces];
 			double coinvalue = (CoinChangerSetupData.CoinScalingFactor * MDB_BUFFER[0].data) / pow(10, CoinChangerSetupData.DecimalPlaces);
-			dtostrf(coinvalue,0,CoinChangerSetupData.DecimalPlaces,cvbuff);
-			EXT_UART_Transmit("CC*PAID*");
+			dtostrf(coinvalue,0,CoinChangerSetupData.DecimalPlaces,(char*)cvbuff);
+			EXT_UART_Transmit_S("CC*PAID*");
 			EXT_UART_Transmit(cvbuff);
 			EXT_CRLF();
 		} else
 		{
-			EXT_UART_Transmit("CC*PAYOUTEND");
+			EXT_UART_Transmit_S("CC*PAYOUTEND");
 			EXT_CRLF();
 			CoinChangerDevice.Status = 1;
 			CoinChangerAlternativePayoutStatus();
 		}
 	} else
 	{
-		EXT_UART_Transmit("CC*PAYSTATUSFAIL");
+		EXT_UART_Transmit_S("CC*PAYSTATUSFAIL");
 		EXT_CRLF();
 		if (CoinChangerDevice.OfflinePollsCount > 0) CoinChangerDevice.OfflinePollsCount--;
 	}
@@ -472,14 +476,14 @@ void CoinChangerConfigFeatures(uint8_t AlternativePayout, uint8_t ExtendedDiagno
 	CoinChangerOptions.EnableExtOptionsBits = (ControlledManualFillAndPayout == 1) ? (CoinChangerOptions.EnableExtOptionsBits | 4) : (CoinChangerOptions.EnableExtOptionsBits & 0xfb);
 	CoinChangerOptions.EnableExtOptionsBits |= (0 << 3);
 	WriteCoinChangerOptions();
-	EXT_UART_Transmit("CC*FEATCFG*");
+	EXT_UART_Transmit_S("CC*FEATCFG*");
 	EXT_UART_OK();
 	CoinChangerEnableFeatures();
 }
 
 void CoinChangerEnableFeatures()
 {
-	EXT_UART_Transmit("CC*FEATENABLE*");
+	EXT_UART_Transmit_S("CC*FEATENABLE*");
 	uint8_t cmd[7];
 	cmd[0] = 0x0f;
 	cmd[1] = 0x01;
@@ -534,18 +538,18 @@ void GetCoinChangerIdentification()
 			}
 			uint8_t tmpmfg[3] = {MDB_BUFFER[0].data, MDB_BUFFER[1].data, MDB_BUFFER[2].data};
 			memcpy(CoinChangerIDData.ManufacturerCode, tmpmfg, 3);
-			EXT_UART_Transmit("CC*ID*");
+			EXT_UART_Transmit_S("CC*ID*");
 			EXT_UART_Transmit(CoinChangerIDData.ManufacturerCode);
 			uint8_t tmpsn[12] = {MDB_BUFFER[3].data, MDB_BUFFER[4].data, MDB_BUFFER[5].data, MDB_BUFFER[6].data, MDB_BUFFER[7].data, MDB_BUFFER[8].data, MDB_BUFFER[9].data, MDB_BUFFER[10].data, MDB_BUFFER[11].data, MDB_BUFFER[12].data, MDB_BUFFER[13].data, MDB_BUFFER[14].data};
 			memcpy(CoinChangerIDData.SerialNumber,tmpsn, 12);
-			EXT_UART_Transmit("*");
+			EXT_UART_Transmit_S("*");
 			EXT_UART_Transmit(CoinChangerIDData.SerialNumber);
 			uint8_t tmpmr[12] = {MDB_BUFFER[15].data, MDB_BUFFER[16].data, MDB_BUFFER[17].data, MDB_BUFFER[18].data, MDB_BUFFER[19].data, MDB_BUFFER[20].data, MDB_BUFFER[21].data, MDB_BUFFER[22].data, MDB_BUFFER[23].data, MDB_BUFFER[24].data, MDB_BUFFER[25].data, MDB_BUFFER[26].data};
 			memcpy(CoinChangerIDData.ModelRevision,tmpmr, 12);
-			EXT_UART_Transmit("*");
+			EXT_UART_Transmit_S("*");
 			EXT_UART_Transmit(CoinChangerIDData.ModelRevision);
 			uint8_t srd[2] = {MDB_BUFFER[27].data, MDB_BUFFER[28].data};
-			CoinChangerIDData.SoftwareVersion = BCDByteToInt(srd);
+			CoinChangerIDData.SoftwareVersion = BCDByteToInt(srd, sizeof(srd));
 			uint32_t flags  = MDB_BUFFER[29].data;
 			flags = (flags << 8) | MDB_BUFFER[30].data;
 			flags = (flags << 8) | MDB_BUFFER[31].data;
@@ -554,8 +558,8 @@ void GetCoinChangerIdentification()
 			CoinChangerIDData.ExtendedDiagnostic = ((flags & (1 << 1)) != 0);
 			CoinChangerIDData.ControlledManualFillAndPayout = ((flags & (1 << 2)) != 0);
 			CoinChangerIDData.FTLSupported = ((flags & (1 << 3)) != 0);
-			sprintf(tmpstr,"*%d*%d*%d*%d*%d", CoinChangerIDData.SoftwareVersion, CoinChangerIDData.AlternativePayout, CoinChangerIDData.ExtendedDiagnostic, CoinChangerIDData.ControlledManualFillAndPayout, CoinChangerIDData.FTLSupported);
-			EXT_UART_Transmit(tmpstr);
+			sprintf_FSTR(tmpstr,"*%d*%d*%d*%d*%d", CoinChangerIDData.SoftwareVersion, CoinChangerIDData.AlternativePayout, CoinChangerIDData.ExtendedDiagnostic, CoinChangerIDData.ControlledManualFillAndPayout, CoinChangerIDData.FTLSupported);
+			EXT_UART_Transmit_S((char*)tmpstr);
 			EXT_CRLF();
 		} else
 		{
@@ -590,9 +594,9 @@ void GetCoinChangerDiagnosticStatus()
 			for (int i = 0; i < tmplen - 1; i++)
 			{
 				uint8_t statusvaluebytes[2] = {TMP[i].data, TMP[i + 1].data};
-				uint16_t statusvalue = BCDByteToInt(statusvaluebytes);
+				uint16_t statusvalue = BCDByteToInt(statusvaluebytes, sizeof(statusvaluebytes));
 				uint8_t tmpdmsg[16];
-				sprintf(tmpdmsg,"%s*%02x%02x", "UNK", TMP[i].data, TMP[i + 1].data);
+				sprintf_FSTR(tmpdmsg,"%s*%02x%02x", "UNK", TMP[i].data, TMP[i + 1].data);
 				if ((statusvalue != 510) && CoinChangerInManualFillOrPaymentMode)
 				{
 					CoinChangerInManualFillOrPaymentMode = 0;
@@ -601,28 +605,28 @@ void GetCoinChangerDiagnosticStatus()
 				switch (statusvalue)
 				{
 					case 100:
-					sprintf(tmpdmsg,"%s", "POWERUP");
+					sprintf((char*)tmpdmsg,"%s", "POWERUP");
 					break;
 					case 200:
-					sprintf(tmpdmsg,"%s", "POWERDOWN");
+					sprintf((char*)tmpdmsg,"%s", "POWERDOWN");
 					break;
 					case 300:
-					sprintf(tmpdmsg,"%s", "OK");
+					sprintf((char*)tmpdmsg,"%s", "OK");
 					//we will suppress diagnostic output if all is OK with coin changer
 					//suppress = 1;
 					break;
 					case 400:
-					sprintf(tmpdmsg,"%s", "KEYPADSHIFTED");
+					sprintf((char*)tmpdmsg,"%s", "KEYPADSHIFTED");
 					break;
 					case 510:
-					sprintf(tmpdmsg,"%s", "MANUALFILLPAY");
+					sprintf((char*)tmpdmsg,"%s", "MANUALFILLPAY");
 					if (CoinChangerInManualFillOrPaymentMode != 1) CoinChangerInManualFillOrPaymentMode = 1;
 					break;
 					case 520:
-					sprintf(tmpdmsg,"%s", "NEWINVENTORY");
+					sprintf((char*)tmpdmsg,"%s", "NEWINVENTORY");
 					break;
 					case 600:
-					sprintf(tmpdmsg,"%s", "INHIBITED");
+					sprintf((char*)tmpdmsg,"%s", "INHIBITED");
 					break;
 				}
 				switch (TMP[i].data)
@@ -633,22 +637,22 @@ void GetCoinChangerDiagnosticStatus()
 						{
 							case 0x00:
 							{
-								sprintf(tmpdmsg,"%s", "ERROR");
+								sprintf((char*)tmpdmsg,"%s", "ERROR");
 								break;
 							}
 							case 0x01:
 							{
-								sprintf(tmpdmsg,"%s", "CSERR1");
+								sprintf((char*)tmpdmsg,"%s", "CSERR1");
 								break;
 							}
 							case 0x02:
 							{
-								sprintf(tmpdmsg,"%s", "CSERR2");
+								sprintf((char*)tmpdmsg,"%s", "CSERR2");
 								break;
 							}
 							case 0x03:
 							{
-								sprintf(tmpdmsg,"%s", "LOWVOLTAGE");
+								sprintf((char*)tmpdmsg,"%s", "LOWVOLTAGE");
 								break;
 							}
 						}
@@ -660,52 +664,52 @@ void GetCoinChangerDiagnosticStatus()
 						{
 							case 0x00:
 							{
-								sprintf(tmpdmsg,"%s", "DISCERR");
+								sprintf((char*)tmpdmsg,"%s", "DISCERR");
 								break;
 							}
 							case 0x10:
 							{
-								sprintf(tmpdmsg,"%s", "DISCDECK");
+								sprintf((char*)tmpdmsg,"%s", "DISCDECK");
 								break;
 							}
 							case 0x11:
 							{
-								sprintf(tmpdmsg,"%s", "DISCOPN");
+								sprintf((char*)tmpdmsg,"%s", "DISCOPN");
 								break;
 							}
 							case 0x30:
 							{
-								sprintf(tmpdmsg,"%s", "DISCJAM");
+								sprintf((char*)tmpdmsg,"%s", "DISCJAM");
 								break;
 							}
 							case 0x41:
 							{
-								sprintf(tmpdmsg,"%s", "DISCBLSTD");
+								sprintf((char*)tmpdmsg,"%s", "DISCBLSTD");
 								break;
 							}
 							case 0x50:
 							{
-								sprintf(tmpdmsg,"%s", "DISCASENS");
+								sprintf((char*)tmpdmsg,"%s", "DISCASENS");
 								break;
 							}
 							case 0x51:
 							{
-								sprintf(tmpdmsg,"%s", "DISCBSENS");
+								sprintf((char*)tmpdmsg,"%s", "DISCBSENS");
 								break;
 							}
 							case 0x52:
 							{
-								sprintf(tmpdmsg,"%s", "DISCCSENS");
+								sprintf((char*)tmpdmsg,"%s", "DISCCSENS");
 								break;
 							}
 							case 0x53:
 							{
-								sprintf(tmpdmsg,"%s", "DISCTMP");
+								sprintf((char*)tmpdmsg,"%s", "DISCTMP");
 								break;
 							}
 							case 0x54:
 							{
-								sprintf(tmpdmsg,"%s", "DISCOPT");
+								sprintf((char*)tmpdmsg,"%s", "DISCOPT");
 								break;
 							}
 						}
@@ -717,27 +721,27 @@ void GetCoinChangerDiagnosticStatus()
 						{
 							case 0x00:
 							{
-								sprintf(tmpdmsg,"%s", "GATERR");
+								sprintf((char*)tmpdmsg,"%s", "GATERR");
 								break;
 							}
 							case 0x30:
 							{
-								sprintf(tmpdmsg,"%s", "GATNX");
+								sprintf((char*)tmpdmsg,"%s", "GATNX");
 								break;
 							}
 							case 0x31:
 							{
-								sprintf(tmpdmsg,"%s", "GATALM");
+								sprintf((char*)tmpdmsg,"%s", "GATALM");
 								break;
 							}
 							case 0x40:
 							{
-								sprintf(tmpdmsg,"%s", "GATND");
+								sprintf((char*)tmpdmsg,"%s", "GATND");
 								break;
 							}
 							case 0x50:
 							{
-								sprintf(tmpdmsg,"%s", "GATSENS");
+								sprintf((char*)tmpdmsg,"%s", "GATSENS");
 								break;
 							}
 						}
@@ -749,12 +753,12 @@ void GetCoinChangerDiagnosticStatus()
 						{
 							case 0x00:
 							{
-								sprintf(tmpdmsg,"%s", "SEPERR");
+								sprintf((char*)tmpdmsg,"%s", "SEPERR");
 								break;
 							}
 							case 0x10:
 							{
-								sprintf(tmpdmsg,"%s", "SEPSENS");
+								sprintf((char*)tmpdmsg,"%s", "SEPSENS");
 								break;
 							}
 						}
@@ -766,7 +770,7 @@ void GetCoinChangerDiagnosticStatus()
 						{
 							case 0x00:
 							{
-								sprintf(tmpdmsg,"%s", "DISPERR");
+								sprintf((char*)tmpdmsg,"%s", "DISPERR");
 								break;
 							}
 						}
@@ -778,22 +782,22 @@ void GetCoinChangerDiagnosticStatus()
 						{
 							case 0x00:
 							{
-								sprintf(tmpdmsg,"%s", "CASERR");
+								sprintf((char*)tmpdmsg,"%s", "CASERR");
 								break;
 							}
 							case 0x02:
 							{
-								sprintf(tmpdmsg,"%s", "CASRMD");
+								sprintf((char*)tmpdmsg,"%s", "CASRMD");
 								break;
 							}
 							case 0x03:
 							{
-								sprintf(tmpdmsg,"%s", "CASSENS");
+								sprintf((char*)tmpdmsg,"%s", "CASSENS");
 								break;
 							}
 							case 0x04:
 							{
-								sprintf(tmpdmsg,"%s", "CASLIT");
+								sprintf((char*)tmpdmsg,"%s", "CASLIT");
 								break;
 							}
 						}
@@ -803,19 +807,19 @@ void GetCoinChangerDiagnosticStatus()
 				i++;
 				if (!suppress)
 				{
-					EXT_UART_Transmit("CC*DIAG*");
+					EXT_UART_Transmit_S("CC*DIAG*");
 					EXT_UART_Transmit(tmpdmsg);
 					EXT_CRLF();
 				}
 			}
 		} else
 		{
-			EXT_UART_Transmit("CC*DIAG*NACK");
+			EXT_UART_Transmit_S("CC*DIAG*NACK");
 			EXT_CRLF();
 		}
 	} else
 	{
-		EXT_UART_Transmit("CC*DIAG*ND");
+		EXT_UART_Transmit_S("CC*DIAG*ND");
 		EXT_CRLF();
 		if (CoinChangerDevice.OfflinePollsCount > 0) CoinChangerDevice.OfflinePollsCount--;
 	}
@@ -842,13 +846,13 @@ void CoinChangerControlledManualFillReport()
 				if (MDB_BUFFER[i].data > 0)
 				{
 					uint8_t tmpstr[10 + CoinChangerSetupData.DecimalPlaces];
-					EXT_UART_Transmit("CC*MANUALFILL");
+					EXT_UART_Transmit_S("CC*MANUALFILL");
 					uint8_t buff[5 + CoinChangerSetupData.DecimalPlaces];
 					double coinvalue = (CoinChangerSetupData.CoinScalingFactor * CoinChangerSetupData.CoinTypeCredit[i]) / pow(10, CoinChangerSetupData.DecimalPlaces);
-					dtostrf(coinvalue,0,CoinChangerSetupData.DecimalPlaces,buff);
-					sprintf(tmpstr,"*%s", buff);
-					EXT_UART_Transmit(tmpstr);
-					sprintf(buff,"*%d", MDB_BUFFER[i].data);
+					dtostrf(coinvalue,0,CoinChangerSetupData.DecimalPlaces,(char*)buff);
+					sprintf((char*)tmpstr,"*%s", buff);
+					EXT_UART_Transmit_S((char*)tmpstr);
+					sprintf_FSTR(buff,"*%d", MDB_BUFFER[i].data);
 					EXT_UART_Transmit(buff);
 					EXT_CRLF();
 				}
@@ -856,12 +860,12 @@ void CoinChangerControlledManualFillReport()
 			//GetCoinChangerTubeStatus();
 		} else
 		{
-			EXT_UART_Transmit("CC*MANUALFILL*UNKNOWN");
+			EXT_UART_Transmit_S("CC*MANUALFILL*UNKNOWN");
 			EXT_CRLF();
 		}
 	} else
 	{
-		EXT_UART_Transmit("CC*MANUALFILL*FAIL");
+		EXT_UART_Transmit_S("CC*MANUALFILL*FAIL");
 		EXT_CRLF();
 		if (CoinChangerDevice.OfflinePollsCount > 0) CoinChangerDevice.OfflinePollsCount--;
 	}
@@ -889,13 +893,13 @@ void CoinChangerControlledManualPayoutReport()
 				if (MDB_BUFFER[i].data > 0)
 				{
 					uint8_t tmpstr[10 + CoinChangerSetupData.DecimalPlaces];
-					EXT_UART_Transmit("CC*MANUALPAYOUT");
+					EXT_UART_Transmit_S("CC*MANUALPAYOUT");
 					uint8_t buff[5 + CoinChangerSetupData.DecimalPlaces];
 					double coinvalue = (CoinChangerSetupData.CoinScalingFactor * CoinChangerSetupData.CoinTypeCredit[i]) / pow(10, CoinChangerSetupData.DecimalPlaces);
-					dtostrf(coinvalue,0,CoinChangerSetupData.DecimalPlaces,buff);
-					sprintf(tmpstr,"*%s", buff);
-					EXT_UART_Transmit(tmpstr);
-					sprintf(buff,"*%d", MDB_BUFFER[i].data);
+					dtostrf(coinvalue,0,CoinChangerSetupData.DecimalPlaces,(char*)buff);
+					sprintf((char*)tmpstr,"*%s", buff);
+					EXT_UART_Transmit_S((char*)tmpstr);
+					sprintf_FSTR(buff,"*%d", MDB_BUFFER[i].data);
 					EXT_UART_Transmit(buff);
 					EXT_CRLF();
 				}
@@ -903,12 +907,12 @@ void CoinChangerControlledManualPayoutReport()
 			//GetCoinChangerTubeStatus();
 		} else
 		{
-			EXT_UART_Transmit("CC*MANUALPAYOUT*UNKNOWN");
+			EXT_UART_Transmit_S("CC*MANUALPAYOUT*UNKNOWN");
 			EXT_CRLF();
 		}
 	} else
 	{
-		EXT_UART_Transmit("CC*MANUALPAYOUT*FAIL");
+		EXT_UART_Transmit_S("CC*MANUALPAYOUT*FAIL");
 		EXT_CRLF();
 		if (CoinChangerDevice.OfflinePollsCount > 0) CoinChangerDevice.OfflinePollsCount--;
 	}

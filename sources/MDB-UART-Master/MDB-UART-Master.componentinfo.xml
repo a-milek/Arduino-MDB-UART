@@ -9,21 +9,13 @@
 			<CSub></CSub>
 			<CVariant></CVariant>
 			<CVendor>Atmel</CVendor>
-<<<<<<< HEAD
 			<CVersion>1.6.0</CVersion>
-=======
-			<CVersion>1.7.0</CVersion>
->>>>>>> f46dd3b (fixed the reapeating defines)
 			<DefaultRepoPath>C:/Program Files (x86)\Atmel\Studio\7.0\Packs</DefaultRepoPath>
 			<DependentComponents xmlns:d4p1="http://schemas.microsoft.com/2003/10/Serialization/Arrays" />
 			<Description></Description>
 			<Files xmlns:d4p1="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
 				<d4p1:anyType i:type="FileInfo">
-<<<<<<< HEAD
 					<AbsolutePath>C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.6.364\include\</AbsolutePath>
-=======
-					<AbsolutePath>C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.7.374\include\</AbsolutePath>
->>>>>>> f46dd3b (fixed the reapeating defines)
 					<Attribute></Attribute>
 					<Category>include</Category>
 					<Condition>C</Condition>
@@ -34,7 +26,6 @@
 					<SourcePath></SourcePath>
 				</d4p1:anyType>
 				<d4p1:anyType i:type="FileInfo">
-<<<<<<< HEAD
 					<AbsolutePath>C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.6.364\include\avr\iom1280.h</AbsolutePath>
 					<Attribute></Attribute>
 					<Category>header</Category>
@@ -42,24 +33,11 @@
 					<FileContentHash>g42Aw2dwaJea9PBCncZmlg==</FileContentHash>
 					<FileVersion></FileVersion>
 					<Name>include/avr/iom1280.h</Name>
-=======
-					<AbsolutePath>C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.7.374\include\avr\iom4808.h</AbsolutePath>
-					<Attribute></Attribute>
-					<Category>header</Category>
-					<Condition>C</Condition>
-					<FileContentHash>OPrFPDiHE3giYzcgqPYX6w==</FileContentHash>
-					<FileVersion></FileVersion>
-					<Name>include/avr/iom4808.h</Name>
->>>>>>> f46dd3b (fixed the reapeating defines)
 					<SelectString></SelectString>
 					<SourcePath></SourcePath>
 				</d4p1:anyType>
 				<d4p1:anyType i:type="FileInfo">
-<<<<<<< HEAD
 					<AbsolutePath>C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.6.364\templates\main.c</AbsolutePath>
-=======
-					<AbsolutePath>C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.7.374\templates\main.c</AbsolutePath>
->>>>>>> f46dd3b (fixed the reapeating defines)
 					<Attribute>template</Attribute>
 					<Category>source</Category>
 					<Condition>C Exe</Condition>
@@ -70,11 +48,7 @@
 					<SourcePath></SourcePath>
 				</d4p1:anyType>
 				<d4p1:anyType i:type="FileInfo">
-<<<<<<< HEAD
 					<AbsolutePath>C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.6.364\templates\main.cpp</AbsolutePath>
-=======
-					<AbsolutePath>C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.7.374\templates\main.cpp</AbsolutePath>
->>>>>>> f46dd3b (fixed the reapeating defines)
 					<Attribute>template</Attribute>
 					<Category>source</Category>
 					<Condition>C Exe</Condition>
@@ -85,37 +59,22 @@
 					<SourcePath></SourcePath>
 				</d4p1:anyType>
 				<d4p1:anyType i:type="FileInfo">
-<<<<<<< HEAD
 					<AbsolutePath>C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.6.364\gcc\dev\atmega1280</AbsolutePath>
-=======
-					<AbsolutePath>C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.7.374\gcc\dev\atmega4808</AbsolutePath>
->>>>>>> f46dd3b (fixed the reapeating defines)
 					<Attribute></Attribute>
 					<Category>libraryPrefix</Category>
 					<Condition>GCC</Condition>
 					<FileContentHash i:nil="true" />
 					<FileVersion></FileVersion>
-<<<<<<< HEAD
 					<Name>gcc/dev/atmega1280</Name>
-=======
-					<Name>gcc/dev/atmega4808</Name>
->>>>>>> f46dd3b (fixed the reapeating defines)
 					<SelectString></SelectString>
 					<SourcePath></SourcePath>
 				</d4p1:anyType>
 			</Files>
 			<PackName>ATmega_DFP</PackName>
-<<<<<<< HEAD
 			<PackPath>C:/Program Files (x86)/Atmel/Studio/7.0/Packs/atmel/ATmega_DFP/1.6.364/Atmel.ATmega_DFP.pdsc</PackPath>
 			<PackVersion>1.6.364</PackVersion>
 			<PresentInProject>true</PresentInProject>
 			<ReferenceConditionId>ATmega1280</ReferenceConditionId>
-=======
-			<PackPath>C:/Program Files (x86)/Atmel/Studio/7.0/Packs/atmel/ATmega_DFP/1.7.374/Atmel.ATmega_DFP.pdsc</PackPath>
-			<PackVersion>1.7.374</PackVersion>
-			<PresentInProject>true</PresentInProject>
-			<ReferenceConditionId>ATmega4808</ReferenceConditionId>
->>>>>>> f46dd3b (fixed the reapeating defines)
 			<RteComponents xmlns:d4p1="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
 				<d4p1:string></d4p1:string>
 			</RteComponents>

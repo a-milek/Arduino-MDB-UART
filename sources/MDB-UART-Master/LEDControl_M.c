@@ -26,8 +26,8 @@ void CCLED_ON()
     if (!(PORTD.OUT & PIN6_bm))
     {
         PORTD.OUTSET = PIN6_bm;
-        EXT_UART_Transmit(str_devonline);
-        EXT_UART_Transmit("CC");
+        EXT_UART_Transmit_S((char*)str_devonline);
+        EXT_UART_Transmit_S("CC");
         EXT_CRLF();
     }
 }
@@ -37,8 +37,8 @@ void CCLED_OFF()
     if (PORTD.OUT & PIN6_bm)
     {
         PORTD.OUTCLR = PIN6_bm;
-        EXT_UART_Transmit(str_devlost);
-        EXT_UART_Transmit("CC");
+        EXT_UART_Transmit_S((char*)str_devlost);
+        EXT_UART_Transmit_S("CC");
         EXT_CRLF();
     }
 }
@@ -48,8 +48,8 @@ void BVLED_ON()
     if (!(PORTC.OUT & PIN5_bm))
     {
         PORTC.OUTSET = PIN5_bm;
-        EXT_UART_Transmit(str_devonline);
-        EXT_UART_Transmit("BV");
+        EXT_UART_Transmit_S((char*)str_devonline);
+        EXT_UART_Transmit_S("BV");
         EXT_CRLF();
     }
 }
@@ -59,8 +59,8 @@ void BVLED_OFF()
     if (PORTC.OUT & PIN5_bm)
     {
         PORTC.OUTCLR = PIN5_bm;
-        EXT_UART_Transmit(str_devlost);
-        EXT_UART_Transmit("BV");
+        EXT_UART_Transmit_S((char*)str_devlost);
+        EXT_UART_Transmit_S("BV");
         EXT_CRLF();
     }
 }
@@ -72,8 +72,8 @@ void CHLED_ON(uint8_t index)
         if (!(PORTD.OUT & PIN5_bm))
         {
             PORTD.OUTSET = PIN5_bm;
-            EXT_UART_Transmit(str_devonline);
-            EXT_UART_Transmit("CH2");
+            EXT_UART_Transmit_S((char*)str_devonline);
+            EXT_UART_Transmit_S("CH2");
             EXT_CRLF();
         }
     }
@@ -82,8 +82,8 @@ void CHLED_ON(uint8_t index)
         if (!(PORTD.OUT & PIN4_bm))
         {
             PORTD.OUTSET = PIN4_bm;
-            EXT_UART_Transmit(str_devonline);
-            EXT_UART_Transmit("CH1");
+            EXT_UART_Transmit_S((char*)str_devonline);
+            EXT_UART_Transmit_S("CH1");
             EXT_CRLF();
         }
     }
@@ -96,8 +96,8 @@ void CHLED_OFF(uint8_t index)
         if (PORTD.OUT & PIN5_bm)
         {
             PORTD.OUTCLR = PIN5_bm;
-            EXT_UART_Transmit(str_devlost);
-            EXT_UART_Transmit("CH2");
+            EXT_UART_Transmit_S((char*)str_devlost);
+            EXT_UART_Transmit_S("CH2");
             EXT_CRLF();
         }
     }
@@ -106,8 +106,8 @@ void CHLED_OFF(uint8_t index)
         if (PORTD.OUT & PIN4_bm)
         {
             PORTD.OUTCLR = PIN4_bm;
-            EXT_UART_Transmit(str_devlost);
-            EXT_UART_Transmit("CH1");
+            EXT_UART_Transmit_S((char*)str_devlost);
+            EXT_UART_Transmit_S("CH1");
             EXT_CRLF();
         }
     }

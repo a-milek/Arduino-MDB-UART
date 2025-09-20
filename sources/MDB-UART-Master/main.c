@@ -4,6 +4,7 @@
  * Created: 31.03.2019 12:47:10
  * Author : root
  */ 
+
 #include "config.h"
 
 #include <avr/io.h>
@@ -22,6 +23,8 @@
 #include "Settings_M.h"
 #include "MDB_M.h"
 #include "ExternalCmd_M.h"
+#include "utils.h"
+
 
 uint16_t IntCycles = 0;
 
@@ -30,14 +33,14 @@ uint8_t Version[] = "1.1.1730";
 void Setup() {
 	MDB_Setup();
 	EXT_UART_Setup();
-	EXT_UART_Transmit("SYS*MDBSTART*");
-	EXT_UART_Transmit(Version);
+	EXT_UART_Transmit_S("SYS*MDBSTART*");
+	EXT_UART_Transmit_S((char*)Version);
 	EXT_CRLF();
 	//wait a bit for slaves initialization
 	delay_1ms(1000);
 }
 
-uint16_t BCDByteToInt(uint8_t BCDBytes[])
+uint16_t BCDByteToInt(uint8_t* BCDBytes, size_t BCDBytes_size)
 {
 	int res = 0;
 	for (int i = 0; i < sizeof(BCDBytes)/sizeof(uint8_t); i++)

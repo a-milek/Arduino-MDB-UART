@@ -19,19 +19,22 @@
 #include "Cashless_M.h"
 #include "Settings_M.h"
 #include "MDB_M.h"
+#include "config.h"
+#include <stdlib.h>
+#include <avr/flash.h>
 
 void MDBDebug()
 {
 	unsigned char * buff[32];
-	sprintf(buff, "Bytes count: %d, content: ", MDB_BUFFER_COUNT);
-	EXT_UART_Transmit(buff);
+	sprintf_FSTR(buff, "Bytes count: %d, content: ", MDB_BUFFER_COUNT);
+	EXT_UART_Transmit_S((char*)buff);
 	for (int a = 0; a < MDB_BUFFER_COUNT - 1; a++)
 	{
-		sprintf(&buff, "%02x ", MDB_BUFFER[a].data);
-		EXT_UART_Transmit(buff);
+		sprintf_FSTR(&buff, "%02x ", MDB_BUFFER[a].data);
+		EXT_UART_Transmit_S((char*)buff);
 	}
-	sprintf(&buff, "%02x\r\n", MDB_BUFFER[MDB_BUFFER_COUNT - 1].data);
-	EXT_UART_Transmit(buff);
+	sprintf_FSTR(&buff, "%02x\r\n", MDB_BUFFER[MDB_BUFFER_COUNT - 1].data);
+	EXT_UART_Transmit_S((char*)buff);
 }
 
 void ProcessMDBResponse(uint8_t addr){
@@ -72,7 +75,7 @@ void ProcessMDBResponse(uint8_t addr){
 						if (CoinChangerDevice.Status == 2)
 						{
 							CoinChangerDevice.Status = 1;
-							EXT_UART_Transmit("CC*DISP*FIN\r\n");
+							EXT_UART_Transmit_S("CC*DISP*FIN\r\n");
 							GetCoinChangerTubeStatus();
 						}
 						break;
@@ -80,7 +83,7 @@ void ProcessMDBResponse(uint8_t addr){
 						if (CoinHopperDevice[0].Status == 2)
 						{
 							CoinHopperDevice[0].Status = 1;
-							EXT_UART_Transmit("CH1*DISP*FIN\r\n");
+							EXT_UART_Transmit_S("CH1*DISP*FIN\r\n");
 							GetCoinHopperDispenserStatus(0);
 						}
 						break;
@@ -88,7 +91,7 @@ void ProcessMDBResponse(uint8_t addr){
 						if (CoinHopperDevice[1].Status == 2)
 						{
 							CoinHopperDevice[1].Status = 1;
-							EXT_UART_Transmit("CH2*DISP*FIN\r\n");
+							EXT_UART_Transmit_S("CH2*DISP*FIN\r\n");
 							GetCoinHopperDispenserStatus(1);
 						}
 						break;
@@ -131,30 +134,36 @@ void PollDevice(uint8_t address)
 
 void PollReader(uint8_t index)
 {
-	uint8_t addr = (index == 1) ? 0x62: 0x12;
+	uint8_t addr = (index == 1) ? 0x62 : 0x12;
+
 	MDBReceiveErrorFlag = 0;
 	MDBReceiveComplete = 0;
 	MDB_BUFFER_COUNT = 0;
-	while ( !( UCSR0A & (1<<UDRE0))) {};
-	UCSR0B |= (1<<TXB80);
-	UDR0 = addr;
-	while ( !( UCSR0A & (1<<UDRE0))) {};
-	UCSR0B &= ~(1<<TXB80);
-	UDR0 = addr;
-	ReaderProcessResponse(index, "");
+
+	/* --- send first 9-bit word with TXDATAH = 1 --- */
+	while (!(EXT_UCSR_A & (1 << EXT_UDRE))) {};
+	EXT_UCSR_B |= (1 << MDB_TXB8);
+	EXT_UDR = addr;
+
+	/* --- send second 9-bit word with TXDATAH = 0 --- */
+	while (!(EXT_UCSR_A & (1 << EXT_UDRE))) {};
+	EXT_UCSR_B &= ~(1 << MDB_TXB8);
+	EXT_UDR = addr;
+
+	ReaderProcessResponse(index, (uint8_t*)"");
 }
 
 void DebugMDBMessage()
 {
 	uint8_t * buff[20];
-	sprintf(buff, "Bytes: %d\r\nHEX:", MDB_BUFFER_COUNT);
-	EXT_UART_Transmit(buff);
+	sprintf_FSTR(buff, "Bytes: %d\r\nHEX:", MDB_BUFFER_COUNT);
+	EXT_UART_Transmit_S((char*)buff);
 	for (int a = 0; a < MDB_BUFFER_COUNT - 1; a++){
-	sprintf(&buff, " %02x", MDB_BUFFER[a].data);
-	EXT_UART_Transmit(buff);
+	sprintf_FSTR(&buff, " %02x", MDB_BUFFER[a].data);
+	EXT_UART_Transmit_S((char*)buff);
 	}
-	sprintf(&buff, " %02x", MDB_BUFFER[MDB_BUFFER_COUNT - 1].data);
-	EXT_UART_Transmit(buff);
+	sprintf_FSTR(&buff, " %02x", MDB_BUFFER[MDB_BUFFER_COUNT - 1].data);
+	EXT_UART_Transmit_S((char*)buff);
 	EXT_CRLF();
 }
 
