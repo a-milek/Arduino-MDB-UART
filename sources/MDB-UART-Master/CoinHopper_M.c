@@ -15,7 +15,6 @@
 #include <avr/interrupt.h>
 #include <avr/eeprom.h>
 #include <avr/pgmspace.h>
-#include <avr/flash.h>
 #include "MDB_M.h"
 #include "USART_M.h"
 #include "CoinHopper_M.h"
