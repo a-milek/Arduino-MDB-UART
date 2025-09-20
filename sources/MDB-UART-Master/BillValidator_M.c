@@ -15,13 +15,11 @@
 #include <avr/interrupt.h>
 #include <avr/eeprom.h>
 #include <avr/pgmspace.h>
-#include <avr/flash.h>
 #include "MDB_M.h"
 #include "USART_M.h"
 #include "BillValidator_M.h"
 #include "Settings_M.h"
 
-#define XXX_sprintf_s(tempbuff,proc_s,one_string) sprintf_FSTR(tempbuff,one_string)
 
 void BillValidatorPollResponse()
 {
@@ -89,7 +87,6 @@ void BillValidatorPollResponse()
 					sprintf(statusbuff,"%s", "REJECT");
 					break;
 					case 12:
-					sprintf_FSTR(statusbuff,"FISHING");
 					sprintf(statusbuff,"%s", "FISHING");
 					break;
 				}
