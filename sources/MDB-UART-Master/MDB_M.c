@@ -20,20 +20,21 @@
 #include "Settings_M.h"
 #include "MDB_M.h"
 #include "config.h"
+#include "config.h"
 #include <stdlib.h>
 #include <avr/flash.h>
 
 void MDBDebug()
 {
 	unsigned char * buff[32];
-	sprintf_FSTR(buff, "Bytes count: %d, content: ", MDB_BUFFER_COUNT);
+	sprintf_FSTR((char*)buff, "Bytes count: %d, content: ", MDB_BUFFER_COUNT);
 	EXT_UART_Transmit_S((char*)buff);
 	for (int a = 0; a < MDB_BUFFER_COUNT - 1; a++)
 	{
-		sprintf_FSTR(&buff, "%02x ", MDB_BUFFER[a].data);
+		sprintf_FSTR((char*)buff, "%02x ", MDB_BUFFER[a].data);
 		EXT_UART_Transmit_S((char*)buff);
 	}
-	sprintf_FSTR(&buff, "%02x\r\n", MDB_BUFFER[MDB_BUFFER_COUNT - 1].data);
+	sprintf_FSTR((char*)buff, "%02x\r\n", MDB_BUFFER[MDB_BUFFER_COUNT - 1].data);
 	EXT_UART_Transmit_S((char*)buff);
 }
 
@@ -141,14 +142,14 @@ void PollReader(uint8_t index)
 	MDB_BUFFER_COUNT = 0;
 
 	/* --- send first 9-bit word with TXDATAH = 1 --- */
-	while (!(EXT_UCSR_A & (1 << EXT_UDRE))) {};
-	EXT_UCSR_B |= (1 << MDB_TXB8);
-	EXT_UDR = addr;
+	while (!(EXT_STATUS & USART_DREIF_bm)) {}  // wait until TX buffer empty
+	EXT_TXDATAH = 0x01;                        // set 9th bit = 1
+	EXT_TXDATAL = addr;
 
 	/* --- send second 9-bit word with TXDATAH = 0 --- */
-	while (!(EXT_UCSR_A & (1 << EXT_UDRE))) {};
-	EXT_UCSR_B &= ~(1 << MDB_TXB8);
-	EXT_UDR = addr;
+	while (!(EXT_STATUS & USART_DREIF_bm)) {}
+	EXT_TXDATAH = 0x00;                        // 9th bit = 0
+	EXT_TXDATAL = addr;
 
 	ReaderProcessResponse(index, (uint8_t*)"");
 }
@@ -156,13 +157,13 @@ void PollReader(uint8_t index)
 void DebugMDBMessage()
 {
 	uint8_t * buff[20];
-	sprintf_FSTR(buff, "Bytes: %d\r\nHEX:", MDB_BUFFER_COUNT);
+	sprintf_FSTR((char*)buff, "Bytes: %d\r\nHEX:", MDB_BUFFER_COUNT);
 	EXT_UART_Transmit_S((char*)buff);
 	for (int a = 0; a < MDB_BUFFER_COUNT - 1; a++){
-	sprintf_FSTR(&buff, " %02x", MDB_BUFFER[a].data);
+	sprintf_FSTR((char*)buff, " %02x", MDB_BUFFER[a].data);
 	EXT_UART_Transmit_S((char*)buff);
 	}
-	sprintf_FSTR(&buff, " %02x", MDB_BUFFER[MDB_BUFFER_COUNT - 1].data);
+	sprintf_FSTR((char*)buff, " %02x", MDB_BUFFER[MDB_BUFFER_COUNT - 1].data);
 	EXT_UART_Transmit_S((char*)buff);
 	EXT_CRLF();
 }

@@ -19,6 +19,8 @@
 #include "USART_M.h"
 #include "MDB_M.h"
 MDB_Byte MDB_BUFFER[37];
+#include "USART_M.h"
+#include "MDB_M.h"
 uint8_t MDB_UART_BUFFER[MDB_UART_BUFFER_MAX];
 volatile uint8_t MDB_UART_BufferHead = 0;
 volatile uint8_t MDB_UART_BufferTail = 0;
@@ -34,21 +36,50 @@ void delay_1ms(uint16_t ms) {
     for (i = 0; i < ms; i++) {
         _delay_ms(1);
     }
+MDB_Byte MDB_BUFFER[37];
+uint8_t MDB_UART_BUFFER[MDB_UART_BUFFER_MAX];
+volatile uint8_t MDB_UART_BufferHead = 0;
+volatile uint8_t MDB_UART_BufferTail = 0;
+volatile uint16_t MDB_BUFFER_COUNT = 0;
+}
+uint8_t EXT_UART_BUFFER[32];
+volatile uint8_t EXT_UART_BufferHead = 0;
+volatile uint8_t EXT_UART_BufferTail = 0;
+volatile uint8_t EXT_UART_BUFFER_COUNT = 0;
+volatile uint8_t EXTCMDCOMPLETE = 0;
+
+/* Local utility function - 1ms delay loop (keeps original API) */
+void delay_1ms(uint16_t ms) {
+    volatile uint16_t i;
+    for (i = 0; i < ms; i++) {
+        _delay_ms(1);
+    }
 }
 
 /* ----------------- MDB UART setup (9-bit, 9600, N,1) ----------------- */
 void MDB_Setup(void)
 {
     /* Baudrate */
-	USART1.BAUD = (uint16_t)((float)F_CPU * 64 / (16 * 9600) + 0.5);
+    MDB_BAUD = (uint16_t)((float)F_CPU * 64.0f / (16.0f * 9600.0f) + 0.5f);
 	MDB_UBRRL = MYUBRR;
 	MDB_UCSR_A &= ~(1 << U2X0);// Disable USART rate doubler
 	MDB_UCSR_C = (0<<UMSEL1)|(0<<UMSEL0)|(0<<UPM1)|(0<<UPM0)|(0<<USBS)|(1<<UCSZ1)|(1<<UCSZ0);
 	MDB_UCSR_B |= (1<<UCSZ2)|(1<<RXEN)|(1<<TXEN); // 9bit
     MDB_CTRLC = USART_CMODE_ASYNCHRONOUS_gc | USART_PMODE_DISABLED_gc | USART_SBMODE_1BIT_gc | (0x03 << USART_CHSIZE_gp);
 
-    /* CTRLB: enable TX and RX; to get 9-bit mode we set UCSZ2 bit (bit position differs by device) */
-    MDB_CTRLB = USART_TXEN_bm | USART_RXEN_bm | USART_RXMODE_NORMAL_gc;
+	// Control C: async, no parity, 1 stop bit
+	USART1.CTRLC = USART_CMODE_ASYNCHRONOUS_gc |
+
+    /* Set 9-bit mode by setting UCSZ2 (the high bit of character size).
+       On megaAVR0 series the UCSZ bits are split between CTRLC(CHSIZE) and CTRLB(UCSZ2 bit position).
+       The macro below sets the UCSZ2 bit in CTRLB if defined; otherwise adjust per device headers.
+    */
+	USART_PMODE_DISABLED_gc |
+    /* On some headers a direct CHSIZE_9BIT macro exists */
+	USART_SBMODE_1BIT_gc;
+#else
+	// Control B: enable RX and TX, 9-bit size
+	 USART1.CTRLB = USART_TXEN_bm | USART_RXEN_bm | USART_RXMODE_NORMAL_gc;
 
     /* Set 9-bit mode by setting UCSZ2 (the high bit of character size).
        On megaAVR0 series the UCSZ bits are split between CTRLC(CHSIZE) and CTRLB(UCSZ2 bit position).
@@ -92,8 +123,7 @@ void EXT_UART_Transmit(uint8_t data[])
 		if ((ch >= 32 && ch != 127) || ch == '\r' || ch == '\n')
 		{
 			/* wait for Data Register Empty */
-		while (( EXT_UCSR_A & (1<<EXT_UDRE))  == 0){};
-		if ((data[i] >= 32 && data[i] != 127) || (data[i] == 0x0d || data[i] == 0x0a)) EXT_UDR = data[i]; else break;
+			while (!(EXT_STATUS & EXT_DRE_IF)) { }
 
 			/* send byte with 9th bit = 0 */
 			EXT_TXDATAH = 0x00;
@@ -103,10 +133,6 @@ void EXT_UART_Transmit(uint8_t data[])
 		{
 			break;
 		}
-	EXT_UBRRH = (MYUBRR>>8);
-	EXT_UBRRL = MYUBRR;
-	EXT_UCSR_C |= (1<< UCSZ0)|(1<< UCSZ1);
-	EXT_UCSR_B = (1 << EXT_TXEN)|(1 << EXT_RXEN)|(1<<EXT_RXCIE);
 	}
 }
 
@@ -146,9 +172,9 @@ void EXT_UART_FAIL(void) { EXT_UART_Transmit_S("FAIL\r\n"); }
 /* ----------------- EXT UART RX ISR (message assembly) -----------------
    The ISR name uses EXT_RXC_vect macro from mdb_usart.h (maps to correct vector)
 */
-ISR(EXT_USART_RX_vect)
+ISR(EXT_RXC_vect)
 {
-	uint8_t tmp = EXT_UDR;
+    uint8_t tmp = (uint8_t)EXT_RXDATAL;
     if (EXTCMDCOMPLETE == 0)
     {
         if (tmp == '+')  /* 0x2b */
@@ -174,7 +200,7 @@ int MDB_Receive(void)
     uint16_t timeout = 0;
 
     /* wait for RX Complete (with timeout) */
-	while ((!(MDB_UCSR_A & (1<<MDB_RXC))) && rtr < 20) {
+    while (!(MDB_STATUS & MDB_RXC_IF) && (timeout < 20))
     {
         delay_1ms(1);
         timeout++;
@@ -188,8 +214,8 @@ int MDB_Receive(void)
     }
 
     /* read 8-bit data and 9th bit */
-	resh = MDB_UCSR_B;
-	resl = MDB_UDR;
+    uint8_t low = (uint8_t)MDB_RXDATAL;
+    uint8_t high = (uint8_t)(MDB_RXDATAH & 0x01);
     int ret = ((high << 8) | low);
     return ret;
 }
@@ -264,24 +290,24 @@ void MDB_Send(uint8_t data[], uint8_t len)
     if (len == 0) return;
 
     /* send first byte with 9th bit = 1 */
-	while ( !( MDB_UCSR_A & (1<<MDB_UDRE))) {};
-	MDB_UCSR_B |= (1<<MDB_TXB8);
-	MDB_UDR = data[0];
+    while (!(MDB_STATUS & MDB_DRE_IF)) { }
+    MDB_TXDATAH = 0x01;           /* 9th bit = 1 */
+    MDB_TXDATAL = data[0];
 
     /* send remaining bytes with 9th bit = 0 */
     for (uint8_t i = 1; i < len; ++i)
     {
-		while ( !( MDB_UCSR_A & (1<<MDB_UDRE))) {};
-		MDB_UCSR_B &= ~(1<<MDB_TXB8);
-		MDB_UDR = data[i];
+        while (!(MDB_STATUS & MDB_DRE_IF)) { }
+        MDB_TXDATAH = 0x00;
+        MDB_TXDATAL = data[i];
     }
 }
 
 /* MDB_ACK() - send ACK (0x00) with 9th bit = 0 (matches original code that cleared TXB8) */
 void MDB_ACK(void)
 {
-	while ( !( MDB_UCSR_A & (1<<MDB_UDRE)));
-	MDB_UCSR_B &= ~(1<<MDB_TXB8);
-	MDB_UDR = 0x00;// send ACK to MDB if peripheral answer is not just *ACK*, otherwise peripheral will try to send unconfirmed data with next polls
+    while (!(MDB_STATUS & MDB_DRE_IF)) { }
+    MDB_TXDATAH = 0x00;
+    MDB_TXDATAL = 0x00;
 }
 
