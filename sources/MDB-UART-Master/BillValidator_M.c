@@ -344,7 +344,7 @@ void BillValidatorRecyclerEnable()
 	for (int i = 4; i < 20; i++)
 	{
 		cmd[i] = ((BillValidatorOptions.EnableRecycleBillsBits >> (i - 4)) & 1 == 1) ? 0x03 : 0x00;
-		//Use all possible bills (this is the recommended setting –
+		//Use all possible bills (this is the recommended setting â€“
 		//the recycler will use its internal setting to determine what bill
 		//are put into the recycler)
 	}
@@ -384,7 +384,7 @@ void BillValidatorRecyclerDisable()
 	for (int i = 4; i < 20; i++)
 	{
 		cmd[i] = 0x00;
-		//Use all possible bills (this is the recommended setting –
+		//Use all possible bills (this is the recommended setting â€“
 		//the recycler will use its internal setting to determine what bill
 		//are put into the recycler)
 	}
