@@ -138,3 +138,16 @@ void USDLED_OFF(uint8_t index)
     else if (index == 1) PORTC.OUTCLR = PIN2_bm;
     else if (index == 2) PORTC.OUTCLR = PIN3_bm;
 }
+
+
+void DIAGLED_FLASH(uint8_t pulses) {
+	for(int8_t k = 0; k < pulses; k++) {
+		PORTC.OUTSET = PIN2_bm;
+		PORTC.OUTCLR = PIN2_bm;
+	}
+}
+
+void LED_SETUP(void) {
+	// so far only one
+	PORTC.DIRSET = PIN2_bm;
+}

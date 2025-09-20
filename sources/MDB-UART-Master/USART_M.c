@@ -15,33 +15,19 @@
 #include <avr/pgmspace.h>
 
 #include "USART_M.h"
+#include "USART_M_conf.h"    
+
 
 #include "USART_M.h"
 #include "MDB_M.h"
-MDB_Byte MDB_BUFFER[37];
-#include "USART_M.h"
-#include "MDB_M.h"
-uint8_t MDB_UART_BUFFER[MDB_UART_BUFFER_MAX];
-volatile uint8_t MDB_UART_BufferHead = 0;
-volatile uint8_t MDB_UART_BufferTail = 0;
-volatile uint16_t MDB_BUFFER_COUNT = 0;
-uint8_t EXT_UART_BUFFER[32];
-volatile uint8_t EXT_UART_BufferHead = 0;
-volatile uint8_t EXT_UART_BufferTail = 0;
-volatile uint8_t EXT_UART_BUFFER_COUNT = 0;
-volatile uint8_t EXTCMDCOMPLETE = 0;
-/* Local utility function - 1ms delay loop (keeps original API) */
-void delay_1ms(uint16_t ms) {
-    volatile uint16_t i;
-    for (i = 0; i < ms; i++) {
-        _delay_ms(1);
-    }
+
+
 MDB_Byte MDB_BUFFER[37];
 uint8_t MDB_UART_BUFFER[MDB_UART_BUFFER_MAX];
 volatile uint8_t MDB_UART_BufferHead = 0;
 volatile uint8_t MDB_UART_BufferTail = 0;
 volatile uint16_t MDB_BUFFER_COUNT = 0;
-}
+
 uint8_t EXT_UART_BUFFER[32];
 volatile uint8_t EXT_UART_BufferHead = 0;
 volatile uint8_t EXT_UART_BufferTail = 0;
@@ -61,25 +47,12 @@ void MDB_Setup(void)
 {
     /* Baudrate */
     MDB_BAUD = (uint16_t)((float)F_CPU * 64.0f / (16.0f * 9600.0f) + 0.5f);
-	MDB_UBRRL = MYUBRR;
-	MDB_UCSR_A &= ~(1 << U2X0);// Disable USART rate doubler
-	MDB_UCSR_C = (0<<UMSEL1)|(0<<UMSEL0)|(0<<UPM1)|(0<<UPM0)|(0<<USBS)|(1<<UCSZ1)|(1<<UCSZ0);
-	MDB_UCSR_B |= (1<<UCSZ2)|(1<<RXEN)|(1<<TXEN); // 9bit
+
+    /* CTRLC: asynchronous, no parity, 1 stop bit, CHSIZE = 8-bit base (we'll set UCSZ2 in CTRLB) */
     MDB_CTRLC = USART_CMODE_ASYNCHRONOUS_gc | USART_PMODE_DISABLED_gc | USART_SBMODE_1BIT_gc | (0x03 << USART_CHSIZE_gp);
 
-	// Control C: async, no parity, 1 stop bit
-	USART1.CTRLC = USART_CMODE_ASYNCHRONOUS_gc |
-
-    /* Set 9-bit mode by setting UCSZ2 (the high bit of character size).
-       On megaAVR0 series the UCSZ bits are split between CTRLC(CHSIZE) and CTRLB(UCSZ2 bit position).
-       The macro below sets the UCSZ2 bit in CTRLB if defined; otherwise adjust per device headers.
-    */
-	USART_PMODE_DISABLED_gc |
-    /* On some headers a direct CHSIZE_9BIT macro exists */
-	USART_SBMODE_1BIT_gc;
-#else
-	// Control B: enable RX and TX, 9-bit size
-	 USART1.CTRLB = USART_TXEN_bm | USART_RXEN_bm | USART_RXMODE_NORMAL_gc;
+    /* CTRLB: enable TX and RX; to get 9-bit mode we set UCSZ2 bit (bit position differs by device) */
+    MDB_CTRLB = USART_TXEN_bm | USART_RXEN_bm | USART_RXMODE_NORMAL_gc;
 
     /* Set 9-bit mode by setting UCSZ2 (the high bit of character size).
        On megaAVR0 series the UCSZ bits are split between CTRLC(CHSIZE) and CTRLB(UCSZ2 bit position).
@@ -123,7 +96,9 @@ void EXT_UART_Transmit(uint8_t data[])
 		if ((ch >= 32 && ch != 127) || ch == '\r' || ch == '\n')
 		{
 			/* wait for Data Register Empty */
-			while (!(EXT_STATUS & EXT_DRE_IF)) { }
+			while (!(EXT_STATUS & EXT_DRE_IF)) {
+				DIAGLED_FLASH(2);
+			}
 
 			/* send byte with 9th bit = 0 */
 			EXT_TXDATAH = 0x00;
@@ -156,6 +131,8 @@ void EXT_UART_Setup(void)
     /* CTRLC: async, no parity, 1 stop bit, 8-bit chars (base) */
     EXT_CTRLC = USART_CMODE_ASYNCHRONOUS_gc | USART_PMODE_DISABLED_gc | USART_SBMODE_1BIT_gc | (0x03 << USART_CHSIZE_gp);
 
+	PORTA.DIRSET = PIN0_bm; //wmilek: added
+	
     /* CTRLB: enable tx/rx and RX interrupt if desired */
     EXT_CTRLB = USART_TXEN_bm | USART_RXEN_bm;
     /* enable RX Complete Interrupt for EXT UART */

@@ -19,5 +19,7 @@ void CDLED_ON(uint8_t index);
 void CDLED_OFF(uint8_t index);
 void USDLED_ON(uint8_t index);
 void USDLED_OFF(uint8_t index);
+void DIAGLED_FLASH(uint8_t pulses);
+void LED_SETUP(void);
 
 #endif /* LEDCONTROL_M_H_ */

@@ -21,6 +21,7 @@
 #include "LEDControl_M.h"
 #include "Settings_M.h"
 #include "utils.h"
+#include "myflash.h"
 
 uint8_t CoinChangerInManualFillOrPaymentMode = 0;
 
@@ -68,7 +69,7 @@ void GetCoinChangerSetupData()
 					uint8_t buff[18 + sizeof(cvbuff)];
 					double coinvalue = (CoinChangerSetupData.CoinScalingFactor * CoinChangerSetupData.CoinTypeCredit[i]) / pow(10, CoinChangerSetupData.DecimalPlaces);
 					dtostrf(coinvalue,0,CoinChangerSetupData.DecimalPlaces,(char*)cvbuff);
-					sprintf_FSTR((char*)buff,"CC*COINSUP*%d*%s*%d*%d\r\n",i + 1,cvbuff,(CoinChangerOptions.EnableAcceptCoinsBits >> i) & 0x01,(CoinChangerOptions.EnableDispenseCoinsBits >> i) & 0x01);
+					XXXX_sprintf_FSTR((char*)buff,"CC*COINSUP*%d*%s*%d*%d\r\n",i + 1,cvbuff,(CoinChangerOptions.EnableAcceptCoinsBits >> i) & 0x01,(CoinChangerOptions.EnableDispenseCoinsBits >> i) & 0x01);
 					EXT_UART_Transmit(buff);
 				}
 			}
@@ -110,7 +111,7 @@ void GetCoinChangerTubeStatus()
 					uint8_t buff[5 + CoinChangerSetupData.DecimalPlaces];
 					double coinvalue = (CoinChangerSetupData.CoinScalingFactor * CoinChangerSetupData.CoinTypeCredit[i - 2]) / pow(10, CoinChangerSetupData.DecimalPlaces);
 					dtostrf(coinvalue,0,CoinChangerSetupData.DecimalPlaces,(char*)buff);
-					sprintf_FSTR((char*)tmpstr,"CC*TUBE*%d*%s*%d*%d", i - 1, buff, MDB_BUFFER[i].data, (fullflags & (1 << (i - 2))));
+					XXXX_sprintf_FSTR((char*)tmpstr,"CC*TUBE*%d*%s*%d*%d", i - 1, buff, MDB_BUFFER[i].data, (fullflags & (1 << (i - 2))));
 					if ((MDB_BUFFER[i].data == 0x00) && ((fullflags & (1 << (i - 2))) == 1)) EXT_UART_Transmit_S("*ERR");
 					EXT_UART_Transmit_S((char*)tmpstr);
 					EXT_CRLF();
@@ -141,7 +142,7 @@ void CoinChangerPollResponse()
 		if ((TMP[i].data >> 5) == 1)
 		{
 			uint16_t slugs = (TMP[i].data & 0x1f);
-			sprintf_FSTR((char*)tmpstr,"CC*SLUG*%d", slugs);
+			XXXX_sprintf_FSTR((char*)tmpstr,"CC*SLUG*%d", slugs);
 			EXT_UART_Transmit_S((char*)tmpstr);
 			EXT_CRLF();
 		}
@@ -189,7 +190,7 @@ void CoinChangerPollResponse()
 				//“JUST RESET” response (i.e., peripheral self resets).
 				CoinChangerDevice.Status = 1;
 				CoinChangerDevice.OfflinePollsCount = 5;
-				sprintf_FSTR((char*)tmpstr,"CC*STATUS*%s\r\n", &statusbuff);
+				XXXX_sprintf_FSTR((char*)tmpstr,"CC*STATUS*%s\r\n", &statusbuff);
 				EXT_UART_Transmit_S((char*)tmpstr);
 				GetCoinChangerSetupData();
 				if (CoinChangerSetupData.CoinChangerFeatureLevel >= 2)
@@ -208,7 +209,7 @@ void CoinChangerPollResponse()
 				sprintf((char*)statusbuff,"%s", "FISHING");
 				break;
 			}
-			sprintf_FSTR((char*)tmpstr,"CC*STATUS*%s", &statusbuff);
+			XXXX_sprintf_FSTR((char*)tmpstr,"CC*STATUS*%s", &statusbuff);
 			EXT_UART_Transmit_S((char*)tmpstr);
 			EXT_CRLF();
 		}
@@ -220,7 +221,7 @@ void CoinChangerPollResponse()
 			uint8_t cvbuff[5 + CoinChangerSetupData.DecimalPlaces];
 			double coinvalue = (CoinChangerSetupData.CoinScalingFactor * CoinChangerSetupData.CoinTypeCredit[cointype]) / pow(10, CoinChangerSetupData.DecimalPlaces);
 			dtostrf(coinvalue,0,CoinChangerSetupData.DecimalPlaces,(char*)cvbuff);
-			sprintf_FSTR((char*)tmpstr,"CC*MANUALDISP*%d*%s*%d*%d", cointype + 1, cvbuff, cdmnumber, coinsintube);
+			XXXX_sprintf_FSTR((char*)tmpstr,"CC*MANUALDISP*%d*%s*%d*%d", cointype + 1, cvbuff, cdmnumber, coinsintube);
 			EXT_UART_Transmit_S((char*)tmpstr);
 			EXT_CRLF();
 			i++;
@@ -248,7 +249,7 @@ void CoinChangerPollResponse()
 				sprintf((char*)routbuff,"%s", "REJECT");
 				break;
 			}
-			sprintf_FSTR((char*)tmpstr,"CC*DEPOSIT*%d*%s*%s*%d", cointype + 1, &cvbuff, &routbuff, coinsintube);
+			XXXX_sprintf_FSTR((char*)tmpstr,"CC*DEPOSIT*%d*%s*%s*%d", cointype + 1, &cvbuff, &routbuff, coinsintube);
 			EXT_UART_Transmit_S((char*)tmpstr);
 			EXT_CRLF();
 			i++;
@@ -265,7 +266,7 @@ void CoinChangerEnableCoinType(uint8_t CoinType, uint8_t EnableAccept, uint8_t E
 	uint8_t cvbuff[5 + CoinChangerSetupData.DecimalPlaces];
 	double coinvalue = (CoinChangerSetupData.CoinScalingFactor * CoinChangerSetupData.CoinTypeCredit[CoinType - 1]) / pow(10, CoinChangerSetupData.DecimalPlaces);
 	dtostrf(coinvalue,0,CoinChangerSetupData.DecimalPlaces,(char*)cvbuff);
-	sprintf_FSTR((char*)buff,"CC*COINCFG*%d*%s*%d*%d*", CoinType, cvbuff, (EnableAccept == 1), (EnableDispense == 1));
+	XXXX_sprintf_FSTR((char*)buff,"CC*COINCFG*%d*%s*%d*%d*", CoinType, cvbuff, (EnableAccept == 1), (EnableDispense == 1));
 	EXT_UART_Transmit(buff);
 	EXT_UART_OK();
 }
@@ -558,7 +559,7 @@ void GetCoinChangerIdentification()
 			CoinChangerIDData.ExtendedDiagnostic = ((flags & (1 << 1)) != 0);
 			CoinChangerIDData.ControlledManualFillAndPayout = ((flags & (1 << 2)) != 0);
 			CoinChangerIDData.FTLSupported = ((flags & (1 << 3)) != 0);
-			sprintf_FSTR((char*)tmpstr,"*%d*%d*%d*%d*%d", CoinChangerIDData.SoftwareVersion, CoinChangerIDData.AlternativePayout, CoinChangerIDData.ExtendedDiagnostic, CoinChangerIDData.ControlledManualFillAndPayout, CoinChangerIDData.FTLSupported);
+			XXXX_sprintf_FSTR((char*)tmpstr,"*%d*%d*%d*%d*%d", CoinChangerIDData.SoftwareVersion, CoinChangerIDData.AlternativePayout, CoinChangerIDData.ExtendedDiagnostic, CoinChangerIDData.ControlledManualFillAndPayout, CoinChangerIDData.FTLSupported);
 			EXT_UART_Transmit_S((char*)tmpstr);
 			EXT_CRLF();
 		} else
@@ -596,7 +597,7 @@ void GetCoinChangerDiagnosticStatus()
 				uint8_t statusvaluebytes[2] = {TMP[i].data, TMP[i + 1].data};
 				uint16_t statusvalue = BCDByteToInt(statusvaluebytes, sizeof(statusvaluebytes));
 				uint8_t tmpdmsg[16];
-				sprintf_FSTR((char*)tmpdmsg,"%s*%02x%02x", "UNK", TMP[i].data, TMP[i + 1].data);
+				XXXX_sprintf_FSTR((char*)tmpdmsg,"%s*%02x%02x", "UNK", TMP[i].data, TMP[i + 1].data);
 				if ((statusvalue != 510) && CoinChangerInManualFillOrPaymentMode)
 				{
 					CoinChangerInManualFillOrPaymentMode = 0;
@@ -852,7 +853,7 @@ void CoinChangerControlledManualFillReport()
 					dtostrf(coinvalue,0,CoinChangerSetupData.DecimalPlaces,(char*)buff);
 					sprintf((char*)tmpstr,"*%s", buff);
 					EXT_UART_Transmit_S((char*)tmpstr);
-					sprintf_FSTR((char*)buff,"*%d", MDB_BUFFER[i].data);
+					XXXX_sprintf_FSTR((char*)buff,"*%d", MDB_BUFFER[i].data);
 					EXT_UART_Transmit(buff);
 					EXT_CRLF();
 				}
@@ -899,7 +900,7 @@ void CoinChangerControlledManualPayoutReport()
 					dtostrf(coinvalue,0,CoinChangerSetupData.DecimalPlaces,(char*)buff);
 					sprintf((char*)tmpstr,"*%s", buff);
 					EXT_UART_Transmit_S((char*)tmpstr);
-					sprintf_FSTR((char*)buff,"*%d", MDB_BUFFER[i].data);
+					XXXX_sprintf_FSTR((char*)buff,"*%d", MDB_BUFFER[i].data);
 					EXT_UART_Transmit(buff);
 					EXT_CRLF();
 				}

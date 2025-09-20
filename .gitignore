@@ -246,3 +246,4 @@ ModelManifest.xml
 /Examples/MDBLib/MDBLib.nuspec
 /Examples/MDBLib/MDBLib.targets
 /Examples/MDBLib/NuGet_publish.txt
+*.orig

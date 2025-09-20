@@ -22,19 +22,20 @@
 #include "config.h"
 #include "config.h"
 #include <stdlib.h>
-#include <avr/flash.h>
+#include "myflash.h"
+#include "USART_M_conf.h"
 
 void MDBDebug()
 {
 	unsigned char * buff[32];
-	sprintf_FSTR((char*)buff, "Bytes count: %d, content: ", MDB_BUFFER_COUNT);
+	XXXX_sprintf_FSTR((char*)buff, "Bytes count: %d, content: ", MDB_BUFFER_COUNT);
 	EXT_UART_Transmit_S((char*)buff);
 	for (int a = 0; a < MDB_BUFFER_COUNT - 1; a++)
 	{
-		sprintf_FSTR((char*)buff, "%02x ", MDB_BUFFER[a].data);
+		XXXX_sprintf_FSTR((char*)buff, "%02x ", MDB_BUFFER[a].data);
 		EXT_UART_Transmit_S((char*)buff);
 	}
-	sprintf_FSTR((char*)buff, "%02x\r\n", MDB_BUFFER[MDB_BUFFER_COUNT - 1].data);
+	XXXX_sprintf_FSTR((char*)buff, "%02x\r\n", MDB_BUFFER[MDB_BUFFER_COUNT - 1].data);
 	EXT_UART_Transmit_S((char*)buff);
 }
 
@@ -157,13 +158,13 @@ void PollReader(uint8_t index)
 void DebugMDBMessage()
 {
 	uint8_t * buff[20];
-	sprintf_FSTR((char*)buff, "Bytes: %d\r\nHEX:", MDB_BUFFER_COUNT);
+	XXXX_sprintf_FSTR((char*)buff, "Bytes: %d\r\nHEX:", MDB_BUFFER_COUNT);
 	EXT_UART_Transmit_S((char*)buff);
 	for (int a = 0; a < MDB_BUFFER_COUNT - 1; a++){
-	sprintf_FSTR((char*)buff, " %02x", MDB_BUFFER[a].data);
+	XXXX_sprintf_FSTR((char*)buff, " %02x", MDB_BUFFER[a].data);
 	EXT_UART_Transmit_S((char*)buff);
 	}
-	sprintf_FSTR((char*)buff, " %02x", MDB_BUFFER[MDB_BUFFER_COUNT - 1].data);
+	XXXX_sprintf_FSTR((char*)buff, " %02x", MDB_BUFFER[MDB_BUFFER_COUNT - 1].data);
 	EXT_UART_Transmit_S((char*)buff);
 	EXT_CRLF();
 }

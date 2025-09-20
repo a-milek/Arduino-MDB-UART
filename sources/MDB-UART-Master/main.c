@@ -198,7 +198,11 @@ void ReadSettings()
 
 int main(void)
 {
+	LED_SETUP();
+	DIAGLED_FLASH(3);
+	
 	Setup();
+	DIAGLED_FLASH(4);
 	ReadSettings();
 	ResetAll();
 	//cashless features not completed yet
@@ -206,6 +210,10 @@ int main(void)
 	//ReaderReset(1);
 	//CashlessDeviceSetup(0);
 	//CashlessDeviceSetup(1);
+	
+	DIAGLED_FLASH(5);
+
+	
     while (1)
     {
 		DispatchExternalCommand();
