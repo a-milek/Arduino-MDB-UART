@@ -9,6 +9,21 @@
 #ifndef MDB_M_H_
 #define MDB_M_H_
 
+typedef struct {
+	uint8_t data;
+	uint8_t mode;
+} MDB_Byte;
+
+extern MDB_Byte MDB_BUFFER[37];
+extern volatile uint16_t MDB_BUFFER_COUNT;
+extern volatile uint8_t MDBReceiveComplete;
+extern volatile uint8_t MDBReceiveErrorFlag;
+#ifndef MDB_BUFFER_MAX
+#define MDB_BUFFER_MAX 37   // or the maximum buffer size you want
+#endif
+
+
+
 // Address of each peripheral device type (MDB Version 4.2, page 25)
 #define ADDRESS_CHANGER   (0x08)  // CoinChanger
 #define ADDRESS_CD1       (0x10)  // Cashless Device 1
@@ -20,11 +35,7 @@
 #define ADDRESS_CD2       (0x60)  // Cashless Device 2
 #define ADDRESS_COIN2     (0x70)  // Coin Hopper 2
 
-// MDB 9-bit defined as two bytes
-typedef struct {
-	uint8_t data;
-	uint8_t mode;
-} MDB_Byte;
+
 
 typedef struct {
 	uint8_t Status;

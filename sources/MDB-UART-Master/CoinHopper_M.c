@@ -5,7 +5,9 @@
  *  Author: root
  */ 
 #include "config.h"
-
+#include "utils.h"
+#include <stdlib.h>
+#include "LEDControl_M.h"
 
 #include <avr/io.h>
 #include <util/delay.h>
@@ -46,7 +48,7 @@ void GetCoinHopperSetupData(uint8_t index)
 			CHLED_ON(index);
 			CoinHopperSetupData[index].DispenserFeatureLevel = MDB_BUFFER[0].data;
 			uint8_t cocd[2] = {MDB_BUFFER[1].data, MDB_BUFFER[2].data};
-			CoinHopperSetupData[index].CountryOrCurrencyCode = BCDByteToInt(cocd);
+			CoinHopperSetupData[index].CountryOrCurrencyCode = BCDByteToInt(cocd, sizeof(cocd));
 			CoinHopperSetupData[index].CoinScalingFactor = MDB_BUFFER[3].data;
 			CoinHopperSetupData[index].DecimalPlaces = MDB_BUFFER[4].data;
 			CoinHopperSetupData[index].MaxResponseTime = MDB_BUFFER[5].data;
@@ -69,18 +71,18 @@ void GetCoinHopperSetupData(uint8_t index)
 			char tmpstr[80];
 			uint8_t mcvbuff[5 + CoinHopperSetupData[index].DecimalPlaces];
 			double mindispvalue = CoinHopperSetupData[index].CoinScalingFactor / pow(10, CoinHopperSetupData[index].DecimalPlaces);
-			dtostrf(mindispvalue,0,CoinHopperSetupData[index].DecimalPlaces,mcvbuff);
-			sprintf_FSTR(tmpstr,"CH%d*CFG*%d*%d*%s", index + 1, CoinHopperSetupData[index].DispenserFeatureLevel, CoinHopperSetupData[index].CountryOrCurrencyCode, mcvbuff);
-			EXT_UART_Transmit(tmpstr);
+			dtostrf(mindispvalue,0,CoinHopperSetupData[index].DecimalPlaces,(char*)mcvbuff);
+			sprintf_FSTR((char*)tmpstr,"CH%d*CFG*%d*%d*%s", index + 1, CoinHopperSetupData[index].DispenserFeatureLevel, CoinHopperSetupData[index].CountryOrCurrencyCode, mcvbuff);
+			EXT_UART_Transmit_S(tmpstr);
 			EXT_CRLF();
 			for (int i = 0; i < 16; i++)
 			{
 				uint8_t cvbuff[10 + CoinHopperSetupData[index].DecimalPlaces];
 				uint8_t buff[18 + sizeof(cvbuff)];
 				double coinvalue = (CoinHopperSetupData[index].CoinScalingFactor * CoinHopperSetupData[index].CoinTypeCredit[i]) / pow(10, CoinHopperSetupData[index].DecimalPlaces);
-				dtostrf(coinvalue,0,CoinHopperSetupData[index].DecimalPlaces,cvbuff);
-				sprintf_FSTR(buff,"CH%d*COINSUP*%d*%s*%d*%d", index + 1, i + 1,cvbuff, (CoinHopperSetupData[index].DisabledCoinTypes[i] == 0x00), CoinHopperSetupData[index].CoinSelfFilling[i]);
-				EXT_UART_Transmit(buff);
+				dtostrf(coinvalue,0,CoinHopperSetupData[index].DecimalPlaces,(char*)cvbuff);
+				sprintf_FSTR((char*)buff,"CH%d*COINSUP*%d*%s*%d*%d", index + 1, i + 1,cvbuff, (CoinHopperSetupData[index].DisabledCoinTypes[i] == 0x00), CoinHopperSetupData[index].CoinSelfFilling[i]);
+				EXT_UART_Transmit_S((char*)buff);
 				EXT_CRLF();
 			}
 			} else {
@@ -89,8 +91,8 @@ void GetCoinHopperSetupData(uint8_t index)
 			}
 		}
 		} else {
-		sprintf_FSTR(tmpstr2,"CH%d*CFGERR", index + 1);
-		EXT_UART_Transmit(tmpstr2);
+		sprintf_FSTR((char*)tmpstr2,"CH%d*CFGERR", index + 1);
+		EXT_UART_Transmit_S(tmpstr2);
 		EXT_CRLF();
 		CHLED_OFF(index);
 	}
@@ -127,12 +129,12 @@ void GetCoinHopperDispenserStatus(uint8_t index)
 					uint8_t tmpstr[70];
 					uint8_t buff[5 + CoinHopperSetupData[index].DecimalPlaces];
 					double coinvalue = (CoinHopperSetupData[index].CoinScalingFactor * CoinHopperSetupData[index].CoinTypeCredit[i]) / pow(10, CoinHopperSetupData[index].DecimalPlaces);
-					dtostrf(coinvalue,0,CoinHopperSetupData[index].DecimalPlaces,buff);
+					dtostrf(coinvalue,0,CoinHopperSetupData[index].DecimalPlaces,(char*)buff);
 					uint16_t coinsqty = MDB_BUFFER[i].data;
 					coinsqty = (coinsqty << 8) | MDB_BUFFER[i + 1].data;
-					sprintf_FSTR(tmpstr,"CH%d*FILL*%s*%d*%d", index + 1, buff, coinsqty, fullflags & (1 << ((i - 2) / 2)));
-					if ((coinsqty == 0x00) && (fullflags & (1 << ((i - 2) / 2)) == 1)) EXT_UART_Transmit("*ERR");
-					EXT_UART_Transmit(tmpstr);
+					sprintf_FSTR((char*)tmpstr,"CH%d*FILL*%s*%d*%d", index + 1, buff, coinsqty, fullflags & (1 << ((i - 2) / 2)));
+					if ((coinsqty == 0x00) && ((fullflags & (1 << ((i - 2) / 2))) == 1)) EXT_UART_Transmit_S("*ERR");
+					EXT_UART_Transmit_S((char*)tmpstr);
 					EXT_CRLF();
 					i++;
 				}
@@ -143,8 +145,8 @@ void GetCoinHopperDispenserStatus(uint8_t index)
 			}
 		}
 		} else {
-		sprintf_FSTR(tmpstr2,"CH%d*FILLERR", index + 1);
-		EXT_UART_Transmit(tmpstr2);
+		sprintf_FSTR((char*)tmpstr2,"CH%d*FILLERR", index + 1);
+		EXT_UART_Transmit_S(tmpstr2);
 		EXT_CRLF();
 		CHLED_OFF(index);
 	}
@@ -154,7 +156,7 @@ void CoinHopperPollResponse(uint8_t index)
 {
 	CHLED_ON(index);
 	uint8_t tmpstr[64];
-	uint8_t cvbuff[8];
+	//uint8_t cvbuff[8];
 	uint16_t tmplen = MDB_BUFFER_COUNT;
 	MDB_Byte TMP[tmplen];
 	memcpy(&TMP, &MDB_BUFFER, MDB_BUFFER_COUNT * 2);
@@ -164,17 +166,17 @@ void CoinHopperPollResponse(uint8_t index)
 		{
 			uint8_t dispmode[8];
 			uint8_t dispres[8];
-			if ((TMP[i].data & (1 << 4)) != 0) sprintf(dispmode, "%s", "MANUAL"); else sprintf(dispmode, "%s", "AUTO");
-			if ((TMP[i].data & (1 << 5)) != 0) sprintf(dispres, "%s", "OK"); else sprintf(dispres, "%s", "FAIL");
+			if ((TMP[i].data & (1 << 4)) != 0) sprintf((char*)dispmode, "%s", "MANUAL"); else sprintf((char*)dispmode, "%s", "AUTO");
+			if ((TMP[i].data & (1 << 5)) != 0) sprintf((char*)dispres, "%s", "OK"); else sprintf((char*)dispres, "%s", "FAIL");
 			uint8_t buff[5 + CoinHopperSetupData[index].DecimalPlaces];
 			double coinvalue = (CoinHopperSetupData[index].CoinScalingFactor * CoinHopperSetupData[index].CoinTypeCredit[TMP[i].data & 0x0f]) / pow(10, CoinHopperSetupData[index].DecimalPlaces);
-			dtostrf(coinvalue,0,CoinHopperSetupData[index].DecimalPlaces,buff);
+			dtostrf(coinvalue,0,CoinHopperSetupData[index].DecimalPlaces,(char*)buff);
 			uint16_t coinsqty = TMP[i + 1].data;
 			coinsqty = (coinsqty << 8) | TMP[i + 2].data;
 			uint16_t coinsleft = TMP[i + 3].data;
 			coinsleft = (coinsleft << 8) | TMP[i + 4].data;
-			sprintf_FSTR(tmpstr,"CH%d*DISPENSED*%s*%s*%s*%d*%d", index + 1, dispmode, dispres, buff, coinsqty, coinsleft);
-			EXT_UART_Transmit(tmpstr);
+			sprintf_FSTR((char*)tmpstr,"CH%d*DISPENSED*%s*%s*%s*%d*%d", index + 1, dispmode, dispres, buff, coinsqty, coinsleft);
+			EXT_UART_Transmit_S((char*)tmpstr);
 			EXT_CRLF();
 			i += 4;
 		}
@@ -184,66 +186,66 @@ void CoinHopperPollResponse(uint8_t index)
 			switch (TMP[i].data & 0x0f)
 			{
 				case 1:
-				sprintf(statusbuff,"%s", "ESCROWREQ");
+				sprintf((char*)statusbuff,"%s", "ESCROWREQ");
 				break;
 				case 2:
-				sprintf(statusbuff,"%s", "PAYOUTBUSY");
+				sprintf((char*)statusbuff,"%s", "PAYOUTBUSY");
 				break;
 				case 3:
-				sprintf(statusbuff,"%s", "NA");
+				sprintf((char*)statusbuff,"%s", "NA");
 				break;
 				case 4:
-				sprintf(statusbuff,"%s", "BADSENSOR");
+				sprintf((char*)statusbuff,"%s", "BADSENSOR");
 				break;
 				case 5:
-				sprintf(statusbuff,"%s", "NOTUSED");
+				sprintf((char*)statusbuff,"%s", "NOTUSED");
 				break;
 				case 6:
-				sprintf(statusbuff,"%s", "NOSTART");
+				sprintf((char*)statusbuff,"%s", "NOSTART");
 				break;
 				case 7:
-				sprintf(statusbuff,"%s", "DISPJAM");
+				sprintf((char*)statusbuff,"%s", "DISPJAM");
 				break;
 				case 8:
-				sprintf(statusbuff,"%s", "ROMERROR");
+				sprintf((char*)statusbuff,"%s", "ROMERROR");
 				break;
 				case 9:
-				sprintf(statusbuff,"%s", "NA");
+				sprintf((char*)statusbuff,"%s", "NA");
 				break;
 				case 10:
-				sprintf(statusbuff,"%s", "NA");
+				sprintf((char*)statusbuff,"%s", "NA");
 				break;
 				case 11:
-				sprintf(statusbuff,"%s", "JUSTRESET");
+				sprintf((char*)statusbuff,"%s", "JUSTRESET");
 				//The following initialization sequence is recommended for all new VMCs
 				//designed after July, 2000. It should be used after “power up”, after issuing
 				//the RESET command, after issuing the Bus Reset (pulling the transmit line
 				//“active” for a minimum of 100 mS), or anytime a POLL command results in a
 				//“JUST RESET” response (i.e., peripheral self resets).
 				CoinHopperDevice[index].Status = 1;
-				sprintf_FSTR(tmpstr,"CH%d*STATUS*%s", index + 1, &statusbuff);
-				EXT_UART_Transmit(tmpstr);
+				sprintf_FSTR((char*)tmpstr,"CH%d*STATUS*%s", index + 1, &statusbuff);
+				EXT_UART_Transmit_S((char*)tmpstr);
 				EXT_CRLF();
 				GetCoinHopperSetupData(index);
 				GetCoinHopperIdentification(index);
 				GetCoinHopperDispenserStatus(index);
 				return;
 				case 12:
-				sprintf(statusbuff,"%s", "NA");
+				sprintf((char*)statusbuff,"%s", "NA");
 				break;
 				case 13:
-				sprintf(statusbuff,"%s", "NA");
+				sprintf((char*)statusbuff,"%s", "NA");
 				break;
 				case 14:
-				sprintf(statusbuff,"%s", "NA");
+				sprintf((char*)statusbuff,"%s", "NA");
 				break;
 				case 15:
-				sprintf(statusbuff,"%s", "FILLEDKEY");
+				sprintf((char*)statusbuff,"%s", "FILLEDKEY");
 				GetCoinHopperDispenserStatus(index);
 				break;
 			}
-			sprintf_FSTR(tmpstr,"CH%d*STATUS*%s", index + 1, &statusbuff);
-			EXT_UART_Transmit(tmpstr);
+			sprintf_FSTR((char*)tmpstr,"CH%d*STATUS*%s", index + 1, &statusbuff);
+			EXT_UART_Transmit_S((char*)tmpstr);
 			EXT_CRLF();
 		}
 	}
@@ -256,8 +258,8 @@ void CoinHopperEnableManualDispenseCoinType(uint8_t index, uint8_t CoinType, uin
 	uint8_t buff[25 + CoinHopperSetupData[index].DecimalPlaces];
 	uint8_t cvbuff[5 + CoinHopperSetupData[index].DecimalPlaces];
 	double coinvalue = (CoinHopperSetupData[index].CoinScalingFactor * CoinHopperSetupData[index].CoinTypeCredit[CoinType - 1]) / pow(10, CoinHopperSetupData[index].DecimalPlaces);
-	dtostrf(coinvalue,0,CoinHopperSetupData[index].DecimalPlaces,cvbuff);
-	sprintf_FSTR(buff,"CH%d*COINCFG*%d*%s*%d*", index + 1, CoinType, cvbuff, (EnableManualDispense == 1));
+	dtostrf(coinvalue,0,CoinHopperSetupData[index].DecimalPlaces,(char*)cvbuff);
+	sprintf_FSTR((char*)buff,"CH%d*COINCFG*%d*%s*%d*", index + 1, CoinType, cvbuff, (EnableManualDispense == 1));
 	EXT_UART_Transmit(buff);
 	EXT_UART_OK();
 	uint8_t cmd[4];
@@ -303,8 +305,8 @@ void CoinHopperDispenseCoins(uint8_t index, uint8_t CoinType, uint16_t CoinsCoun
 	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 	{
 		CHLED_ON(index);
-		sprintf_FSTR(tmpstr,"CH%d*DISPENSE*", index + 1);
-		EXT_UART_Transmit(tmpstr);
+		sprintf_FSTR((char*)tmpstr,"CH%d*DISPENSE*", index + 1);
+		EXT_UART_Transmit_S(tmpstr);
 		switch (MDB_BUFFER[0].data)
 		{
 			case 0x00:
@@ -315,14 +317,14 @@ void CoinHopperDispenseCoins(uint8_t index, uint8_t CoinType, uint16_t CoinsCoun
 			EXT_UART_NAK();
 			break;
 			default:
-			EXT_UART_Transmit("UNK");
+			EXT_UART_Transmit_S("UNK");
 			EXT_CRLF();
 			break;
 		}
 	} else
 	{
-		sprintf_FSTR(tmpstr,"CH%d*DISPENSE*FAIL", index + 1);
-		EXT_UART_Transmit(tmpstr);
+		sprintf_FSTR((char*)tmpstr,"CH%d*DISPENSE*FAIL", index + 1);
+		EXT_UART_Transmit_S(tmpstr);
 		EXT_CRLF();
 		CHLED_OFF(index);
 	}
@@ -350,8 +352,8 @@ void CoinHopperDispenseValue(uint8_t index, uint16_t PayoutValue)
 	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 	{
 		CHLED_ON(index);
-		sprintf_FSTR(tmpstr,"CH%d*SUMPAYOUT*", index + 1);
-		EXT_UART_Transmit(tmpstr);
+		sprintf_FSTR((char*)tmpstr,"CH%d*SUMPAYOUT*", index + 1);
+		EXT_UART_Transmit_S(tmpstr);
 		switch (MDB_BUFFER[0].data)
 		{
 			case 0x00:
@@ -362,14 +364,14 @@ void CoinHopperDispenseValue(uint8_t index, uint16_t PayoutValue)
 			EXT_UART_NAK();
 			break;
 			default:
-			EXT_UART_Transmit("UNK");
+			EXT_UART_Transmit_S("UNK");
 			EXT_CRLF();
 			break;
 		}
 	} else
 	{
-		sprintf_FSTR(tmpstr,"CH%d*SUMPAYOUT*FAIL", index + 1);
-		EXT_UART_Transmit(tmpstr);
+		sprintf_FSTR((char*)tmpstr,"CH%d*SUMPAYOUT*FAIL", index + 1);
+		EXT_UART_Transmit_S(tmpstr);
 		EXT_CRLF();
 		CHLED_OFF(index);
 	}
@@ -402,16 +404,16 @@ void CoinHopperPayoutStatus(uint8_t index)
 			{
 				if (MDB_BUFFER[i].data > 0)
 				{
-					sprintf_FSTR(tmpstr,"CH%d*PAYSTATUS*%d*", index + 1, (i / 2) + 1);
-					EXT_UART_Transmit(tmpstr);
+					sprintf_FSTR((char*)tmpstr,"CH%d*PAYSTATUS*%d*", index + 1, (i / 2) + 1);
+					EXT_UART_Transmit_S(tmpstr);
 					uint8_t buff[5 + CoinHopperSetupData[index].DecimalPlaces];
 					double coinvalue = (CoinHopperSetupData[index].CoinScalingFactor * CoinHopperSetupData[index].CoinTypeCredit[i / 2]) / pow(10, CoinHopperSetupData[index].DecimalPlaces);
-					dtostrf(coinvalue,0,CoinHopperSetupData[index].DecimalPlaces,buff);
+					dtostrf(coinvalue,0,CoinHopperSetupData[index].DecimalPlaces,(char*)buff);
 					sprintf(tmpstr,"*%s", buff);
-					EXT_UART_Transmit(tmpstr);
+					EXT_UART_Transmit_S(tmpstr);
 					uint16_t coinsqty = MDB_BUFFER[i].data;
 					coinsqty = (coinsqty << 8) | MDB_BUFFER[i + 1].data;
-					sprintf(buff,"*%d", coinsqty);
+					sprintf((char*)buff,"*%d", coinsqty);
 					EXT_UART_Transmit(buff);
 					EXT_CRLF();
 					i++;
@@ -421,13 +423,13 @@ void CoinHopperPayoutStatus(uint8_t index)
 		} else
 		{
 			sprintf_FSTR(tmpstr,"CH%d*PAYSTATUS*BUSY", index + 1);
-			EXT_UART_Transmit(tmpstr);
+			EXT_UART_Transmit_S(tmpstr);
 			EXT_CRLF();
 		}
 	} else
 	{
 		sprintf_FSTR(tmpstr,"CH%d*PAYSTATUS*FAIL", index + 1);
-		EXT_UART_Transmit(tmpstr);
+		EXT_UART_Transmit_S(tmpstr);
 		EXT_CRLF();
 		CHLED_OFF(index);
 	}
@@ -460,14 +462,14 @@ void GetCoinHopperPayoutValue(uint8_t index)
 			paidvalue = (paidvalue << 8) | MDB_BUFFER[1].data;
 			uint8_t buff[5 + CoinHopperSetupData[index].DecimalPlaces];
 			double cpvalue = paidvalue / pow(10, CoinHopperSetupData[index].DecimalPlaces);
-			dtostrf(cpvalue,0,CoinHopperSetupData[index].DecimalPlaces,buff);
+			dtostrf(cpvalue,0,CoinHopperSetupData[index].DecimalPlaces,(char*)buff);
 			sprintf_FSTR(tmpstr,"CH%d*PAID*%s", index + 1, buff);
-			EXT_UART_Transmit(tmpstr);
+			EXT_UART_Transmit_S(tmpstr);
 			EXT_CRLF();
 		} else
 		{
 			sprintf_FSTR(tmpstr,"CH%d*PAYOUTEND", index + 1);
-			EXT_UART_Transmit(tmpstr);
+			EXT_UART_Transmit_S(tmpstr);
 			EXT_CRLF();
 			CoinHopperDevice[index].Status = 1;
 			CoinHopperPayoutStatus(index);
@@ -475,7 +477,7 @@ void GetCoinHopperPayoutValue(uint8_t index)
 	} else
 	{
 		sprintf_FSTR(tmpstr,"CH%d*PAYSTATUSFAIL", index + 1);
-		EXT_UART_Transmit(tmpstr);
+		EXT_UART_Transmit_S(tmpstr);
 		EXT_CRLF();
 		CHLED_OFF(index);
 	}
@@ -521,26 +523,26 @@ void GetCoinHopperIdentification(uint8_t index)
 				}
 				uint8_t tmpmfg[3] = {MDB_BUFFER[0].data, MDB_BUFFER[1].data, MDB_BUFFER[2].data};
 				memcpy(CoinHopperIDData[index].ManufacturerCode, tmpmfg, 3);
-				sprintf_FSTR(tmpstr,"CH%d*ID", index + 1);
-				EXT_UART_Transmit(tmpstr);
+				sprintf_FSTR((char*)tmpstr,"CH%d*ID", index + 1);
+				EXT_UART_Transmit_S((char*)tmpstr);
 				EXT_UART_Transmit(CoinHopperIDData[index].ManufacturerCode);
 				uint8_t tmpsn[12] = {MDB_BUFFER[3].data, MDB_BUFFER[4].data, MDB_BUFFER[5].data, MDB_BUFFER[6].data, MDB_BUFFER[7].data, MDB_BUFFER[8].data, MDB_BUFFER[9].data, MDB_BUFFER[10].data, MDB_BUFFER[11].data, MDB_BUFFER[12].data, MDB_BUFFER[13].data, MDB_BUFFER[14].data};
 				memcpy(CoinHopperIDData[index].SerialNumber,tmpsn, 12);
-				EXT_UART_Transmit("*");
+				EXT_UART_Transmit_S("*");
 				EXT_UART_Transmit(CoinHopperIDData[index].SerialNumber);
 				uint8_t tmpmr[12] = {MDB_BUFFER[15].data, MDB_BUFFER[16].data, MDB_BUFFER[17].data, MDB_BUFFER[18].data, MDB_BUFFER[19].data, MDB_BUFFER[20].data, MDB_BUFFER[21].data, MDB_BUFFER[22].data, MDB_BUFFER[23].data, MDB_BUFFER[24].data, MDB_BUFFER[25].data, MDB_BUFFER[26].data};
 				memcpy(CoinHopperIDData[index].ModelRevision,tmpmr, 12);
-				EXT_UART_Transmit("*");
+				EXT_UART_Transmit_S("*");
 				EXT_UART_Transmit(CoinHopperIDData[index].ModelRevision);
 				uint8_t srd[2] = {MDB_BUFFER[27].data, MDB_BUFFER[28].data};
-				CoinHopperIDData[index].SoftwareVersion = BCDByteToInt(srd);
+				CoinHopperIDData[index].SoftwareVersion = BCDByteToInt(srd, sizeof(srd));
 				uint16_t flags  = MDB_BUFFER[29].data;
 				flags = (flags << 8) | MDB_BUFFER[30].data;
 				flags = (flags << 8) | MDB_BUFFER[31].data;
 				flags = (flags << 8) | MDB_BUFFER[32].data;
 				CoinHopperIDData[index].FTLSupported = ((flags & 0x01) == 1);
-				sprintf_FSTR(tmpstr,"*%d*%d", CoinHopperIDData[index].SoftwareVersion, CoinHopperIDData[index].FTLSupported);
-				EXT_UART_Transmit(tmpstr);
+				sprintf_FSTR((char*)tmpstr,"*%d*%d", CoinHopperIDData[index].SoftwareVersion, CoinHopperIDData[index].FTLSupported);
+				EXT_UART_Transmit_S((char*)tmpstr);
 				EXT_CRLF();
 			} else
 			{
@@ -551,8 +553,8 @@ void GetCoinHopperIdentification(uint8_t index)
 		}
 	} else
 	{
-		sprintf_FSTR(tmpstr,"CH%d*ID*FL_LOW", index + 1);
-		EXT_UART_Transmit(tmpstr);
+		sprintf_FSTR((char*)tmpstr,"CH%d*ID*FL_LOW", index + 1);
+		EXT_UART_Transmit_S((char*)tmpstr);
 		EXT_CRLF();
 		CHLED_OFF(index);
 	}

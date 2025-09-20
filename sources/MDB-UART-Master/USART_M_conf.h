@@ -1,108 +1,59 @@
-#define  EXT0_MDB1
-	
-#ifdef EXT0_MDB1
+#ifndef MDB_USART_H
+#define MDB_USART_H
 
-#define MDB_UBRRH      UBRR1H
-#define MDB_UBRRL      UBRR1L
-#define MDB_UCSR_A     UCSR1A
-#define MDB_UCSR_B     UCSR1B
-#define MDB_UCSR_C     UCSR1C
-#define MDB_UDR        UDR1
-#define MDB_TXB8       TXB81
-#define MDB_RXC        RXC1
-#define MDB_UDRE       UDRE1
-#define MDB_RXEN	   RXEN1
-#define MDB_UMSEL_1    UMSEL11
+#include <avr/io.h>
 
-#define EXT_UBRRH      UBRR0H
-#define EXT_UBRRL      UBRR0L
-#define EXT_UCSR_A     UCSR0A
-#define EXT_UCSR_B     UCSR0B
-#define EXT_UCSR_C     UCSR0C
-#define EXT_UDR        UDR0
-#define EXT_TXEN       TXEN0
-#define EXT_RXEN       RXEN0
-#define EXT_RXCIE      RXCIE0
-#define EXT_UDRE       UDRE0
-#define EXT_RXC        RXC0
-#define EXT_USART_RX_vect  USART0_RX_vect
+/* ---------- Select which USART is MDB and which is EXT ---------- */
+#define MDB_USART   USART1
+#define EXT_USART   USART0
 
-//bity
-#define UMSEL0   UMSEL10
-#define UMSEL1   UMSEL11
-#define UPM0     UPM10
-#define UPM1     UPM11
-#define USBS     USBS1
-#define UCSZ0    UCSZ10
-#define UCSZ1    UCSZ11
-#define UCSZ2    UCSZ12
-#define RXEN     RXEN1
-#define TXEN     TXEN1
+/* ---------- Baudrate calculation ---------- */
+#define USART_BAUD(F_CPU, BAUD) ((uint16_t)((float)(F_CPU) * 64 / (16 * (BAUD)) + 0.5))
 
-#define EXT_UMSEL0   UMSEL00
-#define EXT_UMSEL1   UMSEL01
-#define EXT_UPM0     UPM00
-#define EXT_UPM1     UPM01
-#define EXT_USBS     USBS0
-#define EXT_UCSZ0    UCSZ00
-#define EXT_UCSZ1    UCSZ01
-#define EXT_UCSZ2    UCSZ02
-#define EXT_RXEN     RXEN0
-#define EXT_TXEN     TXEN0
+/* ---------- MDB macros ---------- */
+#define MDB_BAUD        MDB_USART.BAUD
+#define MDB_CTRLA       MDB_USART.CTRLA
+#define MDB_CTRLB       MDB_USART.CTRLB
+#define MDB_CTRLC       MDB_USART.CTRLC
+#define MDB_STATUS      MDB_USART.STATUS
+#define MDB_TXDATAL     MDB_USART.TXDATAL
+#define MDB_TXDATAH     MDB_USART.TXDATAH
+#define MDB_RXDATAL     MDB_USART.RXDATAL
+#define MDB_RXDATAH     MDB_USART.RXDATAH
 
+#define MDB_ENABLE_TX()     (MDB_CTRLB |= USART_TXEN_bm)
+#define MDB_ENABLE_RX()     (MDB_CTRLB |= USART_RXEN_bm)
+#define MDB_DISABLE_TX()    (MDB_CTRLB &= ~USART_TXEN_bm)
+#define MDB_DISABLE_RX()    (MDB_CTRLB &= ~USART_RXEN_bm)
 
+/* Status bits (from io.h) */
+#define MDB_DRE_IF      USART_DREIF_bm 
+#define MDB_RXC_IF      USART_RXCIF_bm
 
-#endif
+/* ---------- EXT macros ---------- */
+#define EXT_BAUD        EXT_USART.BAUD
+#define EXT_CTRLA       EXT_USART.CTRLA
+#define EXT_CTRLB       EXT_USART.CTRLB
+#define EXT_CTRLC       EXT_USART.CTRLC
+#define EXT_STATUS      EXT_USART.STATUS
+#define EXT_TXDATAL     EXT_USART.TXDATAL
+#define EXT_TXDATAH     EXT_USART.TXDATAH
+#define EXT_RXDATAL     EXT_USART.RXDATAL
+#define EXT_RXDATAH     EXT_USART.RXDATAH
 
-#ifdef EXT1_MDB0
+#define EXT_ENABLE_TX()     (EXT_CTRLB |= USART_TXEN_bm)
+#define EXT_ENABLE_RX()     (EXT_CTRLB |= USART_RXEN_bm)
+#define EXT_DISABLE_TX()    (EXT_CTRLB &= ~USART_TXEN_bm)
+#define EXT_DISABLE_RX()    (EXT_CTRLB &= ~USART_RXEN_bm)
 
-#define MDB_UBRRH      UBRR0H
-#define MDB_UBRRL      UBRR0L
-#define MDB_UCSR_A     UCSR0A
-#define MDB_UCSR_B     UCSR0B
-#define MDB_UCSR_C     UCSR0C
-#define MDB_UDR        UDR0
-#define MDB_TXB8       TXB80
-#define MDB_RXC        RXC0
-#define MDB_UDRE       UDRE0
-#define MDB_RXEN	   RXEN0
-#define MDB_UMSEL_1    UMSEL01
+/* Status bits */
+#define EXT_DRE_IF      USART_DREIF_bm
+#define EXT_RXC_IF      USART_RXCIF_bm
 
-#define EXT_UBRRH      UBRR1H
-#define EXT_UBRRL      UBRR1L
-#define EXT_UCSR_A     UCSR1A
-#define EXT_UCSR_B     UCSR1B
-#define EXT_UCSR_C     UCSR1C
-#define EXT_UDR        UDR1
-#define EXT_TXEN       TXEN1
-#define EXT_RXEN       RXEN1
-#define EXT_RXCIE      RXCIE1
-#define EXT_UDRE       UDRE1
-#define EXT_RXC        RXC1
-#define EXT_USART_RX_vect  USART1_RX_vect
+/* ---------- Interrupt vectors ---------- */
+#define MDB_RXC_vect        USART1_RXC_vect
+#define MDB_DRE_vect        USART1_DRE_vect
+#define EXT_RXC_vect        USART0_RXC_vect
+#define EXT_DRE_vect        USART0_DRE_vect
 
-//bity
-#define UMSEL0   UMSEL00
-#define UMSEL1   UMSEL01
-#define UPM0     UPM00
-#define UPM1     UPM01
-#define USBS     USBS0
-#define UCSZ0    UCSZ00
-#define UCSZ1    UCSZ01
-#define UCSZ2    UCSZ02
-#define RXEN     RXEN0
-#define TXEN     TXEN0
-
-
-#define EXT_UMSEL0   UMSEL10
-#define EXT_UMSEL1   UMSEL11
-#define EXT_UPM0     UPM10
-#define EXT_UPM1     UPM11
-#define EXT_USBS     USBS1
-#define EXT_UCSZ0    UCSZ10
-#define EXT_UCSZ1    UCSZ11
-#define EXT_UCSZ2    UCSZ12
-#define EXT_RXEN     RXEN1
-#define EXT_TXEN     TXEN1
-
-#endif
+#endif /* MDB_USART_H */

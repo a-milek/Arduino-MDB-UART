@@ -15,6 +15,10 @@
 #include "CoinChanger_M.h"
 #include "BillValidator_M.h"
 #include "CoinHopper_M.h"
+#include "USART_M.h"
+#include "Settings_M.h"
+#include <stdlib.h> 
+#include "config.h"
 
 void EXTCMD_PROCESS() {//receive commands from VMC
 	int cnt = 0;
@@ -29,15 +33,15 @@ void EXTCMD_PROCESS() {//receive commands from VMC
 	}
 	uint8_t (tmp[cnt])[6];
 	int tmpcnt = 0;
-	char * p = strtok(TMP, "*");
+	char * p = strtok((char*)TMP, "*");
 	while (p) {
-		if ((tmpcnt < cnt) && (sizeof(p) <= 6)) strcpy(&tmp[tmpcnt++], p);
+		if ((tmpcnt < cnt) && (sizeof(p) <= 6)) strcpy((char*)&tmp[tmpcnt++], p);
 		p = strtok(NULL, "*");
 	}
 	if (tmpcnt > 0)
 	{
-		uint16_t toplevelcmd = atoi(&tmp[0]);
-		uint16_t secondlevelcmd = atoi(&tmp[1]);
+		uint16_t toplevelcmd = atoi((char*)&tmp[0]);
+		uint16_t secondlevelcmd = atoi((char*)&tmp[1]);
 		switch (toplevelcmd)
 		{
 			case 0:
@@ -80,8 +84,8 @@ void EXTCMD_PROCESS() {//receive commands from VMC
 				{
 					if (cnt == 4)
 					{
-						uint8_t DispenseParams = (atoi(&tmp[3]) << 4) & 0xff;//high 4 bits - quantity, max value = 15
-						DispenseParams = DispenseParams | ((atoi(&tmp[2]) & 0x0f) - 1);//lower 4 bits - coin type, max value = 15
+						uint8_t DispenseParams = (atoi((char*)&tmp[3]) << 4) & 0xff;//high 4 bits - quantity, max value = 15
+						DispenseParams = DispenseParams | ((atoi((char*)&tmp[2]) & 0x0f) - 1);//lower 4 bits - coin type, max value = 15
 						CoinChangerDispense(DispenseParams);
 					}
 				}
@@ -89,7 +93,7 @@ void EXTCMD_PROCESS() {//receive commands from VMC
 				case 6:
 				if (cnt == 3)
 				{
-					CoinChangerAlternativePayout(atoi(&tmp[2]) & 0xff);
+					CoinChangerAlternativePayout(atoi((char*)&tmp[2]) & 0xff);
 				}
 				break;
 				case 7:
@@ -98,13 +102,13 @@ void EXTCMD_PROCESS() {//receive commands from VMC
 				case 8:
 				if (cnt == 5)
 				{
-					CoinChangerEnableCoinType(atoi(&tmp[2]),atoi(&tmp[3]),atoi(&tmp[4]));
+					CoinChangerEnableCoinType(atoi((char*)&tmp[2]),atoi((char*)&tmp[3]),atoi((char*)&tmp[4]));
 				}
 				break;
 				case 9:
 				if (cnt == 5)
 				{
-					CoinChangerConfigFeatures(atoi(&tmp[2]),atoi(&tmp[3]),atoi(&tmp[4]));
+					CoinChangerConfigFeatures(atoi((char*)&tmp[2]),atoi((char*)&tmp[3]),atoi((char*)&tmp[4]));
 				}
 				break;
 			}
@@ -127,31 +131,31 @@ void EXTCMD_PROCESS() {//receive commands from VMC
 				case 5:
 				if (cnt == 3)
 				{
-					BillValidatorEscrow(atoi(&tmp[2]) & 0x01);
+					BillValidatorEscrow(atoi((char*)&tmp[2]) & 0x01);
 				}
 				break;
 				case 6:
 				if (cnt == 4)
 				{
-					BVDispenseBills(atoi(&tmp[2]) & 0xff, atoi(&tmp[3]) & 0xffff);
+					BVDispenseBills(atoi((char*)&tmp[2]) & 0xff, atoi((char*)&tmp[3]) & 0xffff);
 				}
 				break;
 				case 7:
 				if (cnt == 3)
 				{
-					BVDispenseValue(atoi(&tmp[2]) & 0xffff);
+					BVDispenseValue(atoi((char*)&tmp[2]) & 0xffff);
 				}
 				break;
 				case 8:
 				if (cnt == 8)
 				{
-					BillValidatorEnableBillType(atoi(&tmp[2]),atoi(&tmp[3]),atoi(&tmp[4]),atoi(&tmp[5]),atoi(&tmp[6]),atoi(&tmp[7]));
+					BillValidatorEnableBillType(atoi((char*)&tmp[2]),atoi((char*)&tmp[3]),atoi((char*)&tmp[4]),atoi((char*)&tmp[5]),atoi((char*)&tmp[6]),atoi((char*)&tmp[7]));
 				}
 				break;
 				case 9:
 				if (cnt == 3)
 				{
-					BillValidatorConfigFeatures(atoi(&tmp[2]));
+					BillValidatorConfigFeatures(atoi((char*)&tmp[2]));
 				}
 				break;
 				case 10:
@@ -162,8 +166,8 @@ void EXTCMD_PROCESS() {//receive commands from VMC
 			case 3:
 			if (cnt >= 3)
 			{
-				uint8_t index = (atoi(&tmp[1]) == 1) ? 0 : 1;
-				uint16_t thirdlevelcmd = atoi(&tmp[2]);
+				uint8_t index = (atoi((char*)&tmp[1]) == 1) ? 0 : 1;
+				uint16_t thirdlevelcmd = atoi((char*)&tmp[2]);
 				switch (thirdlevelcmd)
 				{
 					case 1:
@@ -176,19 +180,19 @@ void EXTCMD_PROCESS() {//receive commands from VMC
 					case 6:
 					if (cnt == 5)
 					{
-						CoinHopperDispenseCoins(index, atoi(&tmp[3]) & 0xff, atoi(&tmp[4]) & 0xffff);
+						CoinHopperDispenseCoins(index, atoi((char*)&tmp[3]) & 0xff, atoi((char*)&tmp[4]) & 0xffff);
 					}
 					break;
 					case 7:
 					if (cnt == 4)
 					{
-						CoinHopperDispenseValue(index, atoi(&tmp[3]) & 0xffff);
+						CoinHopperDispenseValue(index, atoi((char*)&tmp[3]) & 0xffff);
 					}
 					break;
 					case 8:
 					if (cnt == 5)
 					{
-						CoinHopperEnableManualDispenseCoinType(index, atoi(&tmp[3]) & 0xff, atoi(&tmp[4]) & 0xff);
+						CoinHopperEnableManualDispenseCoinType(index, atoi((char*)&tmp[3]) & 0xff, atoi((char*)&tmp[4]) & 0xff);
 					}
 					break;
 				}
