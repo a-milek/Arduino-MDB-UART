@@ -48,37 +48,41 @@ void MDB_Setup(void)
     /* Baudrate */
     MDB_BAUD = (uint16_t)((float)F_CPU * 64.0f / (16.0f * 9600.0f) + 0.5f);
 
-    /* CTRLC: asynchronous, no parity, 1 stop bit, CHSIZE = 8-bit base (we'll set UCSZ2 in CTRLB) */
-    MDB_CTRLC = USART_CMODE_ASYNCHRONOUS_gc | USART_PMODE_DISABLED_gc | USART_SBMODE_1BIT_gc | (0x03 << USART_CHSIZE_gp);
+    
+	 PORTC.DIRSET = PIN0_bm;   // TX amilek:added
+	 PORTC.DIRCLR = PIN1_bm;   // RX amilek:added
+
+/* CTRLC: asynchronous, no parity, 1 stop bit, CHSIZE = 9-bit base (low byte first) */
+MDB_CTRLC = USART_CMODE_ASYNCHRONOUS_gc | USART_PMODE_DISABLED_gc | USART_SBMODE_1BIT_gc |  (6 << USART_CHSIZE_gp);  ;
 
     /* CTRLB: enable TX and RX; to get 9-bit mode we set UCSZ2 bit (bit position differs by device) */
-    MDB_CTRLB = USART_TXEN_bm | USART_RXEN_bm | USART_RXMODE_NORMAL_gc;
-
+    MDB_CTRLB = USART_TXEN_bm | USART_RXEN_bm; // amilek removed| USART_RXMODE_NORMAL_gc;
     /* Set 9-bit mode by setting UCSZ2 (the high bit of character size).
-       On megaAVR0 series the UCSZ bits are split between CTRLC(CHSIZE) and CTRLB(UCSZ2 bit position).
-       The macro below sets the UCSZ2 bit in CTRLB if defined; otherwise adjust per device headers.
-    */
-#ifdef USART_CHSIZE_9BIT_gc
-    /* On some headers a direct CHSIZE_9BIT macro exists */
-    MDB_CTRLB |= USART_CHSIZE_9BIT_gc;
-#else
-    /* Generic: set the UCSZ2 bit if defined (this macro name may differ between IO headers).
-       Many headers expose USART_RXMODE_NORMAL_gc and the UCSZ2 bit via CTRLB bit position USART_CHSIZE_gp etc.
-       Here we set the bit manually if the bit position macro exists.
-    */
-#ifdef USART_RXMODE0_bp
-    /* This was suggested earlier — if your header defines USART_RXMODE0_bp or similar for UCSZ2 */
-    MDB_CTRLB |= (1 << USART_RXMODE0_bp);
-#else
-    /* Fallback: try common bit name for UCSZ2 */
-#ifdef USART_CHSIZE_gm
-    /* no-op; rely on CTRLC CHSIZE + CTRLB default */
-#else
-    /* If your header doesn't provide a way to set UCSZ2, you may need to consult your device header
-       and replace the above with the correct bit mask for 9-bit mode. */
-#endif
-#endif
-#endif
+        On megaAVR0 series the UCSZ bits are split between CTRLC(CHSIZE) and CTRLB(UCSZ2 bit position).
+        The macro below sets the UCSZ2 bit in CTRLB if defined; otherwise adjust per device headers.
+     */
+//  #ifdef USART_CHSIZE_9BIT_gc amilek:not necessary
+//    
+//      MDB_CTRLB |= USART_CHSIZE_9BIT_gc;
+//  #else
+     /* Generic: set the UCSZ2 bit if defined (this macro name may differ between IO headers).
+        Many headers expose USART_RXMODE_NORMAL_gc and the UCSZ2 bit via CTRLB bit position USART_CHSIZE_gp etc.
+        Here we set the bit manually if the bit position macro exists.
+//      */
+//  #ifdef USART_RXMODE0_bp
+//  #error aaaaaaaaa
+//      /* This was suggested earlier — if your header defines USART_RXMODE0_bp or similar for UCSZ2 */
+//    MDB_CTRLB |= (1 << USART_RXMODE0_bp);
+//  #else
+//      /* Fallback: try common bit name for UCSZ2 */
+//  #ifdef USART_CHSIZE_gm
+//      /* no-op; rely on CTRLC CHSIZE + CTRLB default */
+//  #else
+//      /* If your header doesn't provide a way to set UCSZ2, you may need to consult your device header
+//         and replace the above with the correct bit mask for 9-bit mode. */
+//  #endif
+//  #endif
+// #endif 
 
     /* Clear RX/TX data registers flags if needed */
     (void)MDB_RXDATAL;
@@ -101,8 +105,10 @@ void EXT_UART_Transmit(uint8_t data[])
 			}
 
 			/* send byte with 9th bit = 0 */
+			
+			EXT_TXDATAL = (uint8_t)ch; //switched due to the atmega4808 documentation
 			EXT_TXDATAH = 0x00;
-			EXT_TXDATAL = (uint8_t)ch;
+			//EXT_TXDATAL = (uint8_t)ch;
 		}
 		else
 		{
@@ -268,15 +274,17 @@ void MDB_Send(uint8_t data[], uint8_t len)
 
     /* send first byte with 9th bit = 1 */
     while (!(MDB_STATUS & MDB_DRE_IF)) { }
-    MDB_TXDATAH = 0x01;           /* 9th bit = 1 */
-    MDB_TXDATAL = data[0];
+		MDB_TXDATAL = data[0]; //amilek: switched the order because of the atmega4808 doc 23.3.2.3 
+		MDB_TXDATAH = 0x01;      /* 9th bit = 1 */
+    
 
     /* send remaining bytes with 9th bit = 0 */
     for (uint8_t i = 1; i < len; ++i)
     {
         while (!(MDB_STATUS & MDB_DRE_IF)) { }
-        MDB_TXDATAH = 0x00;
-        MDB_TXDATAL = data[i];
+			
+			MDB_TXDATAL = data[i]; //amilek: switched the order because of the atmega4808 doc 23.3.2.3
+			MDB_TXDATAH = 0x00;
     }
 }
 
@@ -284,7 +292,8 @@ void MDB_Send(uint8_t data[], uint8_t len)
 void MDB_ACK(void)
 {
     while (!(MDB_STATUS & MDB_DRE_IF)) { }
-    MDB_TXDATAH = 0x00;
-    MDB_TXDATAL = 0x00;
+    MDB_TXDATAL = 0x00; //amilek: switched the order because of the atmega4808 doc 23.3.2.3
+	MDB_TXDATAH = 0x00;
+    
 }
 

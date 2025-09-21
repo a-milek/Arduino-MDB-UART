@@ -280,6 +280,7 @@ void CoinChangerEnableAcceptCoins()
 	cmd[3] = (CoinChangerOptions.EnableDispenseCoinsBits >> 8) & 0xff;
 	cmd[4] = CoinChangerOptions.EnableDispenseCoinsBits & 0xff;
 	cmd[5] = ((cmd[0] + cmd[1] + cmd[2] + cmd[3] + cmd[4]) & 0xff);
+	
 	MDB_Send(cmd, 6);
 	while (!MDBReceiveComplete){
 		MDB_read();

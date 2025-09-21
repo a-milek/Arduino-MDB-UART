@@ -69,7 +69,7 @@ void DispatchCommandOrPoll()
 		CoinChangerDevice.Status = 1;
 		break;
 		default:// otherwise, just poll
-		PollDevice(0x0b);
+		PollDevice(0x0b); 
 		break;
 	}
 	//Define coin hopper command
@@ -212,10 +212,18 @@ int main(void)
 	//CashlessDeviceSetup(1);
 	
 	DIAGLED_FLASH(5);
-
+//    while (1)
+//    {
+// 		MDB_Send("a",1);
+// 		delay_1ms(100);
+// 		
+// 		
+// 		
+//    }
 	
     while (1)
     {
+		
 		DispatchExternalCommand();
 		CountCycles();
 		DispatchCommandOrPoll();
