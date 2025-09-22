@@ -295,15 +295,11 @@ void CoinChangerEnableAcceptCoins()
 	cmd[5] = ((cmd[0] + cmd[1] + cmd[2] + cmd[3] + cmd[4]) & 0xff);
 	MDB_Send(cmd, 6);
 	while (!MDBReceiveComplete){
-		//EXT_UART_Transmit_S("B");//amilek: temp for debug
 		MDB_read();
 	}
 	EXT_UART_Transmit_S("CC*ENABLE*");
-	//EXT_UART_PrintHex(cmd, sizeof(cmd)); //amilek: temp for debug
-	
 	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 	{
-			//EXT_UART_Transmit_S("A");//amilek: temp for debug
 		if (MDB_BUFFER_COUNT == 1 && MDB_BUFFER[0].data == 0x00)
 		{
 			EXT_UART_OK();

@@ -21,18 +21,18 @@
 #include "USART_M.h"
 #include "MDB_M.h"
 
- 
- MDB_Byte MDB_BUFFER[37];
- uint8_t MDB_UART_BUFFER[MDB_UART_BUFFER_MAX];
- volatile uint8_t MDB_UART_BufferHead = 0;
- volatile uint8_t MDB_UART_BufferTail = 0;
- volatile uint16_t MDB_BUFFER_COUNT = 0;
- 
- uint8_t EXT_UART_BUFFER[32];
- volatile uint8_t EXT_UART_BufferHead = 0;
- volatile uint8_t EXT_UART_BufferTail = 0;
- volatile uint8_t EXT_UART_BUFFER_COUNT = 0;
- volatile uint8_t EXTCMDCOMPLETE = 0;
+
+MDB_Byte MDB_BUFFER[37];
+uint8_t MDB_UART_BUFFER[MDB_UART_BUFFER_MAX];
+volatile uint8_t MDB_UART_BufferHead = 0;
+volatile uint8_t MDB_UART_BufferTail = 0;
+volatile uint16_t MDB_BUFFER_COUNT = 0;
+
+uint8_t EXT_UART_BUFFER[32];
+volatile uint8_t EXT_UART_BufferHead = 0;
+volatile uint8_t EXT_UART_BufferTail = 0;
+volatile uint8_t EXT_UART_BUFFER_COUNT = 0;
+volatile uint8_t EXTCMDCOMPLETE = 0;
 
 /* Local utility function - 1ms delay loop (keeps original API) */
 void delay_1ms(uint16_t ms) {
@@ -52,37 +52,16 @@ void MDB_Setup(void)
 	 PORTC.DIRSET = PIN0_bm;   // TX amilek:added
 	 PORTC.DIRCLR = PIN1_bm;   // RX amilek:added
 
-/* CTRLC: asynchronous, no parity, 1 stop bit, CHSIZE = 9-bit base (low byte first) */
-MDB_CTRLC = USART_CMODE_ASYNCHRONOUS_gc | USART_PMODE_DISABLED_gc | USART_SBMODE_1BIT_gc |  (6 << USART_CHSIZE_gp);  ;
+	/* CTRLC: asynchronous, no parity, 1 stop bit, CHSIZE = 9-bit base (low byte first) */
+	MDB_CTRLC = USART_CMODE_ASYNCHRONOUS_gc | USART_PMODE_DISABLED_gc | USART_SBMODE_1BIT_gc |  (0x06 << USART_CHSIZE_gp);
 
     /* CTRLB: enable TX and RX; to get 9-bit mode we set UCSZ2 bit (bit position differs by device) */
-    MDB_CTRLB = USART_TXEN_bm | USART_RXEN_bm; // amilek removed| USART_RXMODE_NORMAL_gc;
+    MDB_CTRLB = USART_TXEN_bm | USART_RXEN_bm | USART_RXMODE_NORMAL_gc;
+
     /* Set 9-bit mode by setting UCSZ2 (the high bit of character size).
         On megaAVR0 series the UCSZ bits are split between CTRLC(CHSIZE) and CTRLB(UCSZ2 bit position).
         The macro below sets the UCSZ2 bit in CTRLB if defined; otherwise adjust per device headers.
      */
-//  #ifdef USART_CHSIZE_9BIT_gc amilek:not necessary
-//    
-//      MDB_CTRLB |= USART_CHSIZE_9BIT_gc;
-//  #else
-     /* Generic: set the UCSZ2 bit if defined (this macro name may differ between IO headers).
-        Many headers expose USART_RXMODE_NORMAL_gc and the UCSZ2 bit via CTRLB bit position USART_CHSIZE_gp etc.
-        Here we set the bit manually if the bit position macro exists.
-//      */
-//  #ifdef USART_RXMODE0_bp
-//  #error aaaaaaaaa
-//      /* This was suggested earlier — if your header defines USART_RXMODE0_bp or similar for UCSZ2 */
-//    MDB_CTRLB |= (1 << USART_RXMODE0_bp);
-//  #else
-//      /* Fallback: try common bit name for UCSZ2 */
-//  #ifdef USART_CHSIZE_gm
-//      /* no-op; rely on CTRLC CHSIZE + CTRLB default */
-//  #else
-//      /* If your header doesn't provide a way to set UCSZ2, you may need to consult your device header
-//         and replace the above with the correct bit mask for 9-bit mode. */
-//  #endif
-//  #endif
-// #endif 
 
     /* Clear RX/TX data registers flags if needed */
     (void)MDB_RXDATAL;
@@ -108,7 +87,7 @@ void EXT_UART_Transmit(uint8_t data[])
 			
 			EXT_TXDATAL = (uint8_t)ch; //switched due to the atmega4808 documentation
 			EXT_TXDATAH = 0x00;
-			//EXT_TXDATAL = (uint8_t)ch;
+
 		}
 		else
 		{
@@ -193,7 +172,7 @@ int MDB_Receive(void)
     {
         MDBReceiveErrorFlag = 1;
         MDBReceiveComplete = 1;
-       // return -1; amilek:will see /* indicate error */
+        return -1; /* indicate error */
     }
 
     /* read 8-bit data and 9th bit */
@@ -207,15 +186,14 @@ int MDB_Receive(void)
 void MDB_getByte(MDB_Byte *mdbb)
 {
     int b = MDB_Receive();
-	memcpy (mdbb, &b, 2);
-    //if (b < 0) {
+    if (b < 0) {
         /* error */
-        //mdbb->data = 0;
-      //  mdbb->mode = 0;
-    //} else {
-       // mdbb->data = (uint8_t)(b & 0xFF);
-     //   mdbb->mode = (uint8_t)((b >> 8) & 0x01);
-   // }
+        mdbb->data = 0;
+        mdbb->mode = 0;
+    } else {
+        mdbb->data = (uint8_t)(b & 0xFF);
+        mdbb->mode = (uint8_t)((b >> 8) & 0x01);
+    }
 }
 
 /* Simple checksum validator (last byte equals sum low 8 bits) */
@@ -223,10 +201,12 @@ uint8_t MDB_ChecksumValidate() {
 	int sum = 0;
 	for (int i=0; i < (MDB_BUFFER_COUNT-1); i++)
 	sum += MDB_BUFFER[i].data;
-	if (MDB_BUFFER[MDB_BUFFER_COUNT-1].data == (sum & 0xFF))
-	return 1;
-	else
-	return 0;
+	if (MDB_BUFFER[MDB_BUFFER_COUNT-1].data == (sum & 0xFF)){
+		return 1;
+	}
+	else{
+		return 0;
+	}
 }
 
 
