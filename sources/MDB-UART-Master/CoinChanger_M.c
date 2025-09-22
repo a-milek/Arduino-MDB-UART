@@ -271,6 +271,19 @@ void CoinChangerEnableCoinType(uint8_t CoinType, uint8_t EnableAccept, uint8_t E
 	EXT_UART_OK();
 }
 
+
+
+
+void EXT_UART_PrintHex(const uint8_t *data, uint16_t len) //amilek:temporary function
+{
+	char buf[5]; // "FF " + null
+	for (uint16_t i = 0; i < len; i++)
+	{
+		snprintf(buf, sizeof(buf), "%02X ", data[i]);
+		EXT_UART_Transmit((uint8_t*)buf);  
+	}
+	EXT_UART_Transmit((uint8_t*)"\r\n");
+}
 void CoinChangerEnableAcceptCoins()
 {
 	uint8_t cmd[6];
@@ -280,14 +293,17 @@ void CoinChangerEnableAcceptCoins()
 	cmd[3] = (CoinChangerOptions.EnableDispenseCoinsBits >> 8) & 0xff;
 	cmd[4] = CoinChangerOptions.EnableDispenseCoinsBits & 0xff;
 	cmd[5] = ((cmd[0] + cmd[1] + cmd[2] + cmd[3] + cmd[4]) & 0xff);
-	
 	MDB_Send(cmd, 6);
 	while (!MDBReceiveComplete){
+		//EXT_UART_Transmit_S("B");//amilek: temp for debug
 		MDB_read();
 	}
 	EXT_UART_Transmit_S("CC*ENABLE*");
+	//EXT_UART_PrintHex(cmd, sizeof(cmd)); //amilek: temp for debug
+	
 	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 	{
+			//EXT_UART_Transmit_S("A");//amilek: temp for debug
 		if (MDB_BUFFER_COUNT == 1 && MDB_BUFFER[0].data == 0x00)
 		{
 			EXT_UART_OK();

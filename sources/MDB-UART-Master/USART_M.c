@@ -21,18 +21,18 @@
 #include "USART_M.h"
 #include "MDB_M.h"
 
-
-MDB_Byte MDB_BUFFER[37];
-uint8_t MDB_UART_BUFFER[MDB_UART_BUFFER_MAX];
-volatile uint8_t MDB_UART_BufferHead = 0;
-volatile uint8_t MDB_UART_BufferTail = 0;
-volatile uint16_t MDB_BUFFER_COUNT = 0;
-
-uint8_t EXT_UART_BUFFER[32];
-volatile uint8_t EXT_UART_BufferHead = 0;
-volatile uint8_t EXT_UART_BufferTail = 0;
-volatile uint8_t EXT_UART_BUFFER_COUNT = 0;
-volatile uint8_t EXTCMDCOMPLETE = 0;
+ 
+ MDB_Byte MDB_BUFFER[37];
+ uint8_t MDB_UART_BUFFER[MDB_UART_BUFFER_MAX];
+ volatile uint8_t MDB_UART_BufferHead = 0;
+ volatile uint8_t MDB_UART_BufferTail = 0;
+ volatile uint16_t MDB_BUFFER_COUNT = 0;
+ 
+ uint8_t EXT_UART_BUFFER[32];
+ volatile uint8_t EXT_UART_BufferHead = 0;
+ volatile uint8_t EXT_UART_BufferTail = 0;
+ volatile uint8_t EXT_UART_BUFFER_COUNT = 0;
+ volatile uint8_t EXTCMDCOMPLETE = 0;
 
 /* Local utility function - 1ms delay loop (keeps original API) */
 void delay_1ms(uint16_t ms) {
@@ -101,7 +101,7 @@ void EXT_UART_Transmit(uint8_t data[])
 		{
 			/* wait for Data Register Empty */
 			while (!(EXT_STATUS & EXT_DRE_IF)) {
-				DIAGLED_FLASH(2);
+			//	DIAGLED_FLASH(2);
 			}
 
 			/* send byte with 9th bit = 0 */
@@ -185,7 +185,7 @@ int MDB_Receive(void)
     /* wait for RX Complete (with timeout) */
     while (!(MDB_STATUS & MDB_RXC_IF) && (timeout < 20))
     {
-        delay_1ms(1);
+        _delay_ms(1);
         timeout++;
     }
 
@@ -193,7 +193,7 @@ int MDB_Receive(void)
     {
         MDBReceiveErrorFlag = 1;
         MDBReceiveComplete = 1;
-        return -1; /* indicate error */
+       // return -1; amilek:will see /* indicate error */
     }
 
     /* read 8-bit data and 9th bit */
@@ -207,27 +207,29 @@ int MDB_Receive(void)
 void MDB_getByte(MDB_Byte *mdbb)
 {
     int b = MDB_Receive();
-    if (b < 0) {
+	memcpy (mdbb, &b, 2);
+    //if (b < 0) {
         /* error */
-        mdbb->data = 0;
-        mdbb->mode = 0;
-    } else {
-        mdbb->data = (uint8_t)(b & 0xFF);
-        mdbb->mode = (uint8_t)((b >> 8) & 0x01);
-    }
+        //mdbb->data = 0;
+      //  mdbb->mode = 0;
+    //} else {
+       // mdbb->data = (uint8_t)(b & 0xFF);
+     //   mdbb->mode = (uint8_t)((b >> 8) & 0x01);
+   // }
 }
 
 /* Simple checksum validator (last byte equals sum low 8 bits) */
-uint8_t MDB_ChecksumValidate(void)
-{
-    int sum = 0;
-    for (int i = 0; i < (MDB_BUFFER_COUNT - 1); i++) {
-        sum += MDB_BUFFER[i].data;
-    }
-    return (MDB_BUFFER[MDB_BUFFER_COUNT - 1].data == (sum & 0xFF));
+uint8_t MDB_ChecksumValidate() {
+	int sum = 0;
+	for (int i=0; i < (MDB_BUFFER_COUNT-1); i++)
+	sum += MDB_BUFFER[i].data;
+	if (MDB_BUFFER[MDB_BUFFER_COUNT-1].data == (sum & 0xFF))
+	return 1;
+	else
+	return 0;
 }
 
-/* Read one MDB byte into MDB_BUFFER (and update flags similar to original) */
+
 void MDB_read(void)
 {
     if (MDB_BUFFER_COUNT >= MDB_BUFFER_MAX) {
@@ -243,27 +245,17 @@ void MDB_read(void)
     if (MDB_BUFFER_COUNT >= MDB_BUFFER_MAX) {
         MDBReceiveComplete = 1;
         MDBReceiveErrorFlag = 1;
-        return;
+        
     }
 
     /* If last received had mode==1 and checksum validates -> frame complete */
-    if ((MDB_BUFFER[MDB_BUFFER_COUNT - 1].mode == 1) && (MDB_BUFFER_COUNT >= 2))
-    {
-        if (MDB_ChecksumValidate())
-        {
-            MDBReceiveComplete = 1;
-        }
-        else
-        {
-            /* keep reading until complete or overflow */
-        }
-    }
+	if ((MDB_BUFFER[MDB_BUFFER_COUNT - 1].mode == 1) & (MDB_ChecksumValidate() == 1)){
+		MDBReceiveComplete = 1;
+	}
+
 }
 
-/* MDB_Send() - send 'len' bytes; first byte is sent with 9th bit = 1 (address),
-   following bytes with 9th bit = 0 (data), matching original behavior.
-   data[] contains 8-bit values; we promote to 9-bit when sending.
-*/
+
 void MDB_Send(uint8_t data[], uint8_t len)
 {
     MDBReceiveErrorFlag = 0;

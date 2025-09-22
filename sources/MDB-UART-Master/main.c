@@ -198,11 +198,11 @@ void ReadSettings()
 
 int main(void)
 {
-	LED_SETUP();
-	DIAGLED_FLASH(3);
+	//LED_SETUP();
+	//DIAGLED_FLASH(3);
 	
 	Setup();
-	DIAGLED_FLASH(4);
+	// DIAGLED_FLASH(4);
 	ReadSettings();
 	ResetAll();
 	//cashless features not completed yet
