@@ -142,21 +142,11 @@ void PollDevice(uint8_t address)
 
 void PollReader(uint8_t index)
 {
+	// WM: address of cacheless is 0x10/0x60 - 0x02 is POLL command on lower bits
 	uint8_t addr = (index == 1) ? 0x62 : 0x12;
-
-	MDBReceiveErrorFlag = 0;
-	MDBReceiveComplete = 0;
-	MDB_BUFFER_COUNT = 0;
-
-	/* --- send first 9-bit word with TXDATAH = 1 --- */
-	while (!(EXT_STATUS & USART_DREIF_bm)) {}  // wait until TX buffer empty
-	EXT_TXDATAH = 0x01;                        // set 9th bit = 1
-	EXT_TXDATAL = addr;
-
-	/* --- send second 9-bit word with TXDATAH = 0 --- */
-	while (!(EXT_STATUS & USART_DREIF_bm)) {}
-	EXT_TXDATAH = 0x00;                        // 9th bit = 0
-	EXT_TXDATAL = addr;
+	
+	uint8_t tmp2[2] = {addr, addr};
+	MDB_Send(tmp2, 2);
 
 	ReaderProcessResponse(index, (uint8_t*)"");
 }
