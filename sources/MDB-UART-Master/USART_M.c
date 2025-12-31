@@ -34,6 +34,9 @@ volatile uint8_t EXT_UART_BufferTail = 0;
 volatile uint8_t EXT_UART_BUFFER_COUNT = 0;
 volatile uint8_t EXTCMDCOMPLETE = 0;
 
+volatile uint8_t MDBReceiveComplete;  //MDB message receive completed flag
+volatile uint8_t MDBReceiveErrorFlag;  //MDB message receive error flag
+
 /* Local utility function - 1ms delay loop (keeps original API) */
 void delay_1ms(uint16_t ms) {
     volatile uint16_t i;
@@ -48,8 +51,11 @@ void MDB_Setup(void)
     /* Baudrate */
     MDB_BAUD = (uint16_t)((float)F_CPU * 64.0f / (16.0f * 9600.0f) + 0.5f);
 
-    /* CTRLC: asynchronous, no parity, 1 stop bit, CHSIZE = 8-bit base (we'll set UCSZ2 in CTRLB) */
-    MDB_CTRLC = USART_CMODE_ASYNCHRONOUS_gc | USART_PMODE_DISABLED_gc | USART_SBMODE_1BIT_gc | (0x03 << USART_CHSIZE_gp);
+    // CTRLC: asynchronous, no parity, 1 stop bit, USART_CHSIZE_gp = 0x06 - 9-bit (Low byte first)
+    MDB_CTRLC = USART_CMODE_ASYNCHRONOUS_gc | USART_PMODE_DISABLED_gc | USART_SBMODE_2BIT_gc | (0x06 << USART_CHSIZE_gp);
+
+	PORTC.DIRSET = PIN0_bm; //wmilek: added
+	//PORTC.PIN1CTRL |= PORT_INVEN_bm;
 
     /* CTRLB: enable TX and RX; to get 9-bit mode we set UCSZ2 bit (bit position differs by device) */
     MDB_CTRLB = USART_TXEN_bm | USART_RXEN_bm | USART_RXMODE_NORMAL_gc;
@@ -59,6 +65,7 @@ void MDB_Setup(void)
        The macro below sets the UCSZ2 bit in CTRLB if defined; otherwise adjust per device headers.
     */
 #ifdef USART_CHSIZE_9BIT_gc
+#error ddd
     /* On some headers a direct CHSIZE_9BIT macro exists */
     MDB_CTRLB |= USART_CHSIZE_9BIT_gc;
 #else
@@ -67,8 +74,9 @@ void MDB_Setup(void)
        Here we set the bit manually if the bit position macro exists.
     */
 #ifdef USART_RXMODE0_bp
+	//#error ddd
     /* This was suggested earlier — if your header defines USART_RXMODE0_bp or similar for UCSZ2 */
-    MDB_CTRLB |= (1 << USART_RXMODE0_bp);
+    //MDB_CTRLB |= (1 << USART_RXMODE0_bp);
 #else
     /* Fallback: try common bit name for UCSZ2 */
 #ifdef USART_CHSIZE_gm
@@ -81,13 +89,31 @@ void MDB_Setup(void)
 #endif
 
     /* Clear RX/TX data registers flags if needed */
-    (void)MDB_RXDATAL;
-    (void)MDB_RXDATAH;
+	while(MDB_STATUS & USART_RXCIF_bm) {
+		(void)MDB_RXDATAL;
+		(void)MDB_RXDATAH;
+	}
 }
 
 /* ----------------- EXT (external UART used for logs) ----------------- */
 
 /* Transmit a NUL-terminated string on EXT UART (ASCII-safe) */
+
+
+static void EXT_UART_TransmitC(uint8_t c)
+{
+
+	/* wait for Data Register Empty */
+	while (!(EXT_STATUS & EXT_DRE_IF)) {
+		DIAGLED_FLASH(2);
+	}
+
+	/* send byte with 9th bit = 0 */
+	EXT_TXDATAH = 0x00;
+	EXT_TXDATAL = (uint8_t)c;
+}
+
+
 void EXT_UART_Transmit(uint8_t data[])
 {
 	while (*data)
@@ -95,14 +121,7 @@ void EXT_UART_Transmit(uint8_t data[])
 		char ch = *data++;
 		if ((ch >= 32 && ch != 127) || ch == '\r' || ch == '\n')
 		{
-			/* wait for Data Register Empty */
-			while (!(EXT_STATUS & EXT_DRE_IF)) {
-				DIAGLED_FLASH(2);
-			}
-
-			/* send byte with 9th bit = 0 */
-			EXT_TXDATAH = 0x00;
-			EXT_TXDATAL = (uint8_t)ch;
+			EXT_UART_TransmitC(ch);
 		}
 		else
 		{
@@ -111,9 +130,64 @@ void EXT_UART_Transmit(uint8_t data[])
 	}
 }
 
-void EXT_UART_Transmit_S(char* string){
-	EXT_UART_Transmit((uint8_t*)string);
+void EXT_UART_Transmit_UN(const uint8_t data[], size_t size) {
+	for(size_t n=0; (n < size); n++) {
+		EXT_UART_TransmitC(data[n]);
+	}
 }
+
+void EXT_UART_Transmit_SN(const char* string, size_t maxlen) {
+	for(size_t n=0; (n < maxlen) && (string[n] != 0); n++) {
+		EXT_UART_TransmitC((uint8_t)string[n]);
+	}
+}
+
+void EXT_UART_Transmit_S(const char* string) {
+	EXT_UART_Transmit_SN(string, SIZE_MAX);
+}
+
+void EXT_UART_Transmit_HEXDUMP(const char *prefix, void *_p, size_t size) {
+	uint8_t *p = (uint8_t*)_p;
+	
+	
+	EXT_UART_Transmit("DIAG:");
+	EXT_UART_Transmit(prefix);
+	EXT_UART_Transmit(":");
+	
+	char buf[3];
+	const char hexasci[] = "0123456789abcdef";
+
+	for(size_t t = 0; t < size; t++) {
+		
+		buf[0] = hexasci[((p[t] & 0xf0) >> 4)];
+		buf[1] = hexasci[((p[t] & 0x0f) >> 0)];
+		buf[2] = '\0';
+		EXT_UART_Transmit(buf);
+	}
+	
+	EXT_CRLF();
+}
+
+void EXT_UART_Transmit_HEXDUMP_MDBBYTE(const char *prefix, MDB_Byte mdbdata[], size_t mdbdata_count) {
+		
+	EXT_UART_Transmit("DIAG:");
+	EXT_UART_Transmit(prefix);
+	EXT_UART_Transmit(":");
+	
+	char buf[3];
+	const char hexasci[] = "0123456789abcdef";
+
+	for(size_t t = 0; t < mdbdata_count; t++) {
+		
+		buf[0] = hexasci[((mdbdata[t].data & 0xf0) >> 4)];
+		buf[1] = hexasci[((mdbdata[t].data & 0x0f) >> 0)];
+		buf[2] = '\0';
+		EXT_UART_Transmit(buf);
+	}
+	
+	EXT_CRLF();
+}
+
 
 
 /* Send CRLF on EXT */
@@ -167,7 +241,7 @@ ISR(EXT_RXC_vect)
 }
 
 /* ----------------- MDB receive/send helpers (9-bit aware) ----------------- */
-
+static uint16_t mdb_received_cnt;
 /* Blocking receive of one 9-bit word from MDB with ~20 ms timeout.
    Returns: 16-bit value where bit8 is MODE/9th-bit, low byte is data.
    On timeout sets MDBReceiveErrorFlag and MDBReceiveComplete.
@@ -177,23 +251,49 @@ int MDB_Receive(void)
     uint16_t timeout = 0;
 
     /* wait for RX Complete (with timeout) */
-    while (!(MDB_STATUS & MDB_RXC_IF) && (timeout < 20))
+    while ((MDB_STATUS & USART_RXCIF_bm)==0 && (timeout < 2000))
     {
-        delay_1ms(1);
+        _delay_us(10);
         timeout++;
     }
-
-    if (timeout >= 20)
+		
+    if (timeout >= 2000)
     {
-        MDBReceiveErrorFlag = 1;
+        MDBReceiveErrorFlag = 2;
         MDBReceiveComplete = 1;
         return -1; /* indicate error */
     }
 
     /* read 8-bit data and 9th bit */
     uint8_t low = (uint8_t)MDB_RXDATAL;
-    uint8_t high = (uint8_t)(MDB_RXDATAH & 0x01);
+	uint8_t rxdatah = (uint8_t)(MDB_RXDATAH);
+    uint8_t high = (uint8_t)(rxdatah & 0x01);
+	
+	
+	if (rxdatah & USART_BUFOVF_bm) {
+		MDBReceiveErrorFlag = 10;
+		MDBReceiveComplete = 1;
+		return -1; /* indicate error */
+	}
+	
+	if (rxdatah & USART_FERR_bm) {
+		MDBReceiveErrorFlag = 11;
+		MDBReceiveComplete = 1;
+		return -1; /* indicate error */
+	}
+
+	
     int ret = ((high << 8) | low);
+	
+	mdb_received_cnt++;
+	
+	
+	if (0) {
+		char tmpstr[32];
+		sprintf((char*)tmpstr,"WMDIAG*rcv:%d", mdb_received_cnt);
+		sprintf((char*)tmpstr,"WMDIAG*rcx:%x", ret);
+		EXT_UART_Transmit_S((char*)tmpstr);
+	}
     return ret;
 }
 
@@ -227,7 +327,7 @@ void MDB_read(void)
     if (MDB_BUFFER_COUNT >= MDB_BUFFER_MAX) {
         /* overflow protection */
         MDBReceiveComplete = 1;
-        MDBReceiveErrorFlag = 1;
+        MDBReceiveErrorFlag = 3;
         return;
     }
 
@@ -236,21 +336,26 @@ void MDB_read(void)
     /* safety cap (original used 37) */
     if (MDB_BUFFER_COUNT >= MDB_BUFFER_MAX) {
         MDBReceiveComplete = 1;
-        MDBReceiveErrorFlag = 1;
+        MDBReceiveErrorFlag = 4;
         return;
     }
 
     /* If last received had mode==1 and checksum validates -> frame complete */
-    if ((MDB_BUFFER[MDB_BUFFER_COUNT - 1].mode == 1) && (MDB_BUFFER_COUNT >= 2))
+    if ((MDB_BUFFER[MDB_BUFFER_COUNT - 1].mode == 1))
     {
-        if (MDB_ChecksumValidate())
-        {
-            MDBReceiveComplete = 1;
-        }
-        else
-        {
-            /* keep reading until complete or overflow */
-        }
+		if (MDB_BUFFER_COUNT >= 2) {
+			if (MDB_ChecksumValidate())
+			{
+				MDBReceiveComplete = 1;
+			}
+			else
+			{
+				/* keep reading until complete or overflow */
+			}
+		} else {
+			// WM: just one byte, but with mode = 1
+			MDBReceiveComplete = 1;
+		}
     }
 }
 
