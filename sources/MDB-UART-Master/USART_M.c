@@ -150,9 +150,9 @@ void EXT_UART_Transmit_HEXDUMP(const char *prefix, void *_p, size_t size) {
 	uint8_t *p = (uint8_t*)_p;
 	
 	
-	EXT_UART_Transmit("DIAG:");
-	EXT_UART_Transmit(prefix);
-	EXT_UART_Transmit(":");
+	EXT_UART_Transmit_S("DIAG:");
+	EXT_UART_Transmit_S(prefix);
+	EXT_UART_Transmit_S(":");
 	
 	char buf[3];
 	const char hexasci[] = "0123456789abcdef";
@@ -162,7 +162,7 @@ void EXT_UART_Transmit_HEXDUMP(const char *prefix, void *_p, size_t size) {
 		buf[0] = hexasci[((p[t] & 0xf0) >> 4)];
 		buf[1] = hexasci[((p[t] & 0x0f) >> 0)];
 		buf[2] = '\0';
-		EXT_UART_Transmit(buf);
+		EXT_UART_Transmit_S(buf);
 	}
 	
 	EXT_CRLF();
@@ -170,9 +170,9 @@ void EXT_UART_Transmit_HEXDUMP(const char *prefix, void *_p, size_t size) {
 
 void EXT_UART_Transmit_HEXDUMP_MDBBYTE(const char *prefix, MDB_Byte mdbdata[], size_t mdbdata_count) {
 		
-	EXT_UART_Transmit("DIAG:");
-	EXT_UART_Transmit(prefix);
-	EXT_UART_Transmit(":");
+	EXT_UART_Transmit_S("DIAG:");
+	EXT_UART_Transmit_S(prefix);
+	EXT_UART_Transmit_S(":");
 	
 	char buf[3];
 	const char hexasci[] = "0123456789abcdef";
@@ -182,7 +182,7 @@ void EXT_UART_Transmit_HEXDUMP_MDBBYTE(const char *prefix, MDB_Byte mdbdata[], s
 		buf[0] = hexasci[((mdbdata[t].data & 0xf0) >> 4)];
 		buf[1] = hexasci[((mdbdata[t].data & 0x0f) >> 0)];
 		buf[2] = '\0';
-		EXT_UART_Transmit(buf);
+		EXT_UART_Transmit_S(buf);
 	}
 	
 	EXT_CRLF();
