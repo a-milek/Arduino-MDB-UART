@@ -127,11 +127,17 @@ void ProcessMDBResponse(uint8_t addr){
 	}
 }
 
+//
+// WM: address is actualy address + pool command encoded on lower bits
+// 	PollDevice(0x0b); - CoinChangerDevice - 0x08 - address + 0b0011 - command pool
+//  PollDevice(0x33); - BillValidatorDevice 0x33 = '0b110011' ... 0x30H - address + 0b0011 command pool
+//
 void PollDevice(uint8_t address)
 {
+	// WM: this is actually address + command followed by CHK which is equal to adress because lack of DATA bytes.
 	uint8_t tmp2[2] = {address, address};
 	MDB_Send(tmp2, 2);
-	ProcessMDBResponse(address & 0xf8);
+	ProcessMDBResponse(address & 0xf8); // WM: 0xf8 - '0b11111000' - mask lower bits used for command
 }
 
 void PollReader(uint8_t index)
