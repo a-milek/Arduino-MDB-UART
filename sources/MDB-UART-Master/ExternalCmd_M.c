@@ -20,24 +20,108 @@
 #include <stdlib.h> 
 #include "config.h"
 
+
+void extcmd_process_9diagnostic(uint16_t secondlevelcmd, char tmp[][6], size_t tmpcnt) {
+
+
+	for(size_t z = 0; z < tmpcnt; z++) {
+		EXT_UART_Transmit(">");
+		EXT_UART_Transmit(tmp[z]);
+		EXT_UART_Transmit("<");
+		EXT_CRLF();
+	}
+	
+
+	
+	switch(secondlevelcmd) {
+		case 1:
+		 {
+				EXT_UART_Transmit_S("DIAG*PING");
+				EXT_CRLF();
+		 }
+		 break;
+		case 2:
+		{
+			CashlessDeviceSetup(0);
+			EXT_UART_Transmit_S("WMDIAG*PRICES16");
+			CashlessDeviceSetupPrices16bit(0);
+			EXT_UART_Transmit_S("WMDIAG*EXPANSION");
+			CashlessDeviceRequestExpansionID(0);
+			EXT_UART_Transmit_S("WMDIAG*OPT");
+			CashlessDeviceEnableOptFetures(0);
+		
+			EXT_UART_Transmit_S("DIAG*ENABLE");
+			ReaderEDC(0, 0x01);
+		}
+		break;
+		case  3:
+		{
+			EXT_UART_Transmit_S("DIAG*RVR");
+				EXT_UART_Transmit_S(tmp[0]);
+				EXT_UART_Transmit_S(":");
+				EXT_UART_Transmit_S(tmp[1]);
+			if (tmpcnt >= 2) {
+				double price = strtod(tmp[0], NULL);
+				uint16_t itemnumber = atoi(tmp[1]);
+				ReaderVendRequest(0, price, itemnumber);
+			}
+		}
+		break;
+		case 4:
+		{
+			ReaderVendSuccess(0);
+		}
+		break;
+
+		case 5: {
+			ReaderSessionComplete(0);
+		}
+		break;
+		
+		case 6: {
+			ReaderReset(0);
+		}
+		break;
+		
+		case 7: {
+			if (tmpcnt >= 1) {
+				uint16_t cmd = atoi(tmp[0]);
+				ReaderEDC(0, cmd);
+			}
+		}
+		break;
+		
+		case 8: {
+			ReaderVendFailure(0);
+		}
+		break;
+
+	}
+}
+
 void EXTCMD_PROCESS() {//receive commands from VMC
 	int cnt = 0;
 	uint8_t tmplen = EXT_UART_BUFFER_COUNT;
 	uint8_t TMP[tmplen];
 	memcpy(&TMP, &EXT_UART_BUFFER, tmplen);
+	
+
+//	EXT_UART_Transmit_HEXDUMP(TMP, tmplen);
+	
 	EXT_UART_BUFFER_COUNT = 0;
 	EXTCMDCOMPLETE = 0;
 	for (int i = 0; i < tmplen; i++)
 	{
-		if (TMP[i] == 0x2a) cnt++;
+		if (TMP[i] == '*') cnt++;
 	}
-	uint8_t (tmp[cnt])[6];
+	char tmp[cnt][6];
 	int tmpcnt = 0;
 	char * p = strtok((char*)TMP, "*");
 	while (p) {
 		if ((tmpcnt < cnt) && (sizeof(p) <= 6)) strcpy((char*)&tmp[tmpcnt++], p);
 		p = strtok(NULL, "*");
 	}
+	
 	if (tmpcnt > 0)
 	{
 		uint16_t toplevelcmd = atoi((char*)&tmp[0]);
@@ -198,6 +282,12 @@ void EXTCMD_PROCESS() {//receive commands from VMC
 				}
 			}
 			break;
+			case 9: // WM diag
+			{
+				extcmd_process_9diagnostic(secondlevelcmd, &tmp[2], tmpcnt-2);
+			}
+			break;
+			
 		}
 	}
 }

@@ -28,7 +28,7 @@
 
 uint16_t IntCycles = 0;
 
-uint8_t Version[] = "1.1.1730";
+uint8_t Version[] = "1.1.1730a";
 
 void Setup() {
 	MDB_Setup();
@@ -92,11 +92,12 @@ void DispatchCommandOrPoll()
 			}
 		}
 	}
+
 	//Define cashless device command
 	for (int i = 0; i < 2; i++)
 	{
-		//switch (CashlessDevice[i].Status)
-		//{
+		switch (CashlessDevice[i].Status)
+		{
 			//default:// just poll
 			//ReaderVendCancel(i);
 			////CashlessDeviceSetup(i);
@@ -108,10 +109,13 @@ void DispatchCommandOrPoll()
 			////PollReader(i);
 			////CashlessDeviceSetup(i);
 			//break;
-		//}
+			default:
+				PollReader(i);
+		}
 		delay_1ms(1);
 	}
 	//Define bill validation device command
+
 	switch (BillValidatorDevice.Status)
 	{
 		case 3:// alternative payout in progress
@@ -156,8 +160,7 @@ void CountCycles()
 		{
 			BillValidatorDevice.Status = 4;
 		}
-	} else
-	{
+	} else {
 		if ((IntCycles % 37) == 0)
 		{
 			if (CoinChangerDevice.Status != 0)
@@ -191,6 +194,8 @@ void DispatchDeviceLED()
 void ReadSettings()
 {
 	ReadVMCData();
+	ReadCashlessPrices();
+	
 	ReadCoinChangerOptions();
 	ReadBVOptions();
 	ReadCoinHoppersOptions();
@@ -205,23 +210,42 @@ int main(void)
 	DIAGLED_FLASH(4);
 	ReadSettings();
 	ResetAll();
+	
 	//cashless features not completed yet
-	//ReaderReset(0);
-	//ReaderReset(1);
-	//CashlessDeviceSetup(0);
-	//CashlessDeviceSetup(1);
+	ReaderReset(0);
+	ReaderReset(1);
+	CashlessDeviceSetup(0);
+	CashlessDeviceSetup(1);
 	
 	DIAGLED_FLASH(5);
-
+#if 0
+	while(1) {
+		uint8_t z0[] = {0x10, 0x10, 0xdd};
+		uint8_t z1[] = {0x60, 0x60, 0xdd};
+		uint8_t z3[] = {0xcc, 0xcc, 0xdd};
+		MDB_Send(z0, 2);
+		delay_1ms(10);
+		MDB_Send(z1, 2);
+		delay_1ms(10);
+		MDB_Send(z3, 2);
+		delay_1ms(10);
+	}
+#endif
 	
     while (1)
     {
+		
 		DispatchExternalCommand();
+		
 		CountCycles();
+		
 		DispatchCommandOrPoll();
+		
 		//Uncomment next line when using in rev2a board
 		DispatchDeviceLED();
 		//BillValidatorEnableAcceptBills();
 		delay_1ms(100);
+		
+		
     }
 }

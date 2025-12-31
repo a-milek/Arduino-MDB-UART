@@ -21,7 +21,12 @@
 #include "Settings_M.h"
 #include "MDB_M.h"
 
-VMCData_t EEMEM nv_VMCData = {3,16,2,1,"RUS","000000000000","000000000002","01"};
+//  3 - The VMC is able to support level 02, but also supports some or all of
+// 16 - 16 columns?
+//  2 - 2 rows
+//  1 - Full ASCII
+//
+VMCData_t EEMEM nv_VMCData = {3,16,2,1,"OTA","000000000123","000000000002","03"};
 //ReaderOptions_t EEMEM nv_ReaderOptions[2] = {{0xffffffff,0x00000000,{0x10,0x18},{0,1,1,1,0,1}},{0xffffffff, 0x00000000,{0x10,0x18},{0,1,1,1,0,1}}}; //original
   ReaderOptions_t EEMEM nv_ReaderOptions[2] = {
 		  {
@@ -29,7 +34,7 @@ VMCData_t EEMEM nv_VMCData = {3,16,2,1,"RUS","000000000000","000000000002","01"}
 
 			.MinPrice={.Value=0x00000000}, //minprice
 			.CountryOrCurrencyCode={0x10,0x18}, //country currency code [2]
-			{0,1,1,1,0,1} //reader opt features
+			{.MonetaryFormat32bitEnabled=1, .MultiCurrEnabled=1, .NegVendEnabled=1, .AlwaysIdleEnabled=1} //reader opt features
 		   },
 		   {
 			.MaxPrice={.Value=0xffffffff}, 
@@ -47,12 +52,14 @@ void ReadVMCData()
 {
 	eeprom_read_block((void*)&VMCData, (const void*)&nv_VMCData, 33);
 	EXT_UART_Transmit_S("SYS*VMCSET*READ*");
+	EXT_UART_Transmit_HEXDUMP("VMCDATA", &VMCData, sizeof(VMCData));
 	EXT_UART_OK();
 }
 
 void ReadCashlessPrices()
 {
 	eeprom_read_block((void*)&ReaderOptions, (const void*)&nv_ReaderOptions, 32);
+	EXT_UART_Transmit_HEXDUMP("READEROPTIONS", &ReaderOptions, sizeof(ReaderOptions));
 	EXT_UART_Transmit_S("SYS*CDSET*READ*");
 	EXT_UART_OK();
 }
