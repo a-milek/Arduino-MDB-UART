@@ -264,19 +264,24 @@ void MDB_Send(uint8_t data[], uint8_t len)
     MDBReceiveComplete = 0;
     MDB_BUFFER_COUNT = 0;
 
+	if (len > 4) {
+		EXT_UART_Transmit_HEXDUMP("MDBSEND", data, len);
+	}
+
     if (len == 0) return;
 
     /* send first byte with 9th bit = 1 */
     while (!(MDB_STATUS & MDB_DRE_IF)) { }
-    MDB_TXDATAH = 0x01;           /* 9th bit = 1 */
     MDB_TXDATAL = data[0];
+	MDB_TXDATAH = 0x01;           /* 9th bit = 1 */
 
     /* send remaining bytes with 9th bit = 0 */
     for (uint8_t i = 1; i < len; ++i)
     {
         while (!(MDB_STATUS & MDB_DRE_IF)) { }
+		MDB_TXDATAL = data[i];
         MDB_TXDATAH = 0x00;
-        MDB_TXDATAL = data[i];
+
     }
 }
 
@@ -284,7 +289,7 @@ void MDB_Send(uint8_t data[], uint8_t len)
 void MDB_ACK(void)
 {
     while (!(MDB_STATUS & MDB_DRE_IF)) { }
-    MDB_TXDATAH = 0x00;
     MDB_TXDATAL = 0x00;
+    MDB_TXDATAH = 0x00;
 }
 
