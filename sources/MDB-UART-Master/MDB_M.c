@@ -4,7 +4,6 @@
  * Created: 18.05.2019 09:56:50
  *  Author: root
  */ 
-#include "config.h"
 #include <avr/io.h>
 #include <util/delay.h>
 #include <stdio.h>
@@ -19,7 +18,6 @@
 #include "Cashless_M.h"
 #include "Settings_M.h"
 #include "MDB_M.h"
-#include "config.h"
 #include "config.h"
 #include <stdlib.h>
 #include "myflash.h"

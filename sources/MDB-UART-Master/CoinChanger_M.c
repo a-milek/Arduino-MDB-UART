@@ -271,6 +271,19 @@ void CoinChangerEnableCoinType(uint8_t CoinType, uint8_t EnableAccept, uint8_t E
 	EXT_UART_OK();
 }
 
+
+
+
+void EXT_UART_PrintHex(const uint8_t *data, uint16_t len) //amilek:temporary function
+{
+	char buf[5]; // "FF " + null
+	for (uint16_t i = 0; i < len; i++)
+	{
+		snprintf(buf, sizeof(buf), "%02X ", data[i]);
+		EXT_UART_Transmit((uint8_t*)buf);  
+	}
+	EXT_UART_Transmit((uint8_t*)"\r\n");
+}
 void CoinChangerEnableAcceptCoins()
 {
 	uint8_t cmd[6];

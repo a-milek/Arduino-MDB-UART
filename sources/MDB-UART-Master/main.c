@@ -203,11 +203,8 @@ void ReadSettings()
 
 int main(void)
 {
-	LED_SETUP();
-	DIAGLED_FLASH(3);
 	
 	Setup();
-	DIAGLED_FLASH(4);
 	ReadSettings();
 	ResetAll();
 	

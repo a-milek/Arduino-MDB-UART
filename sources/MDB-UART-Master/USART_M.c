@@ -312,16 +312,19 @@ void MDB_getByte(MDB_Byte *mdbb)
 }
 
 /* Simple checksum validator (last byte equals sum low 8 bits) */
-uint8_t MDB_ChecksumValidate(void)
-{
-    int sum = 0;
-    for (int i = 0; i < (MDB_BUFFER_COUNT - 1); i++) {
-        sum += MDB_BUFFER[i].data;
-    }
-    return (MDB_BUFFER[MDB_BUFFER_COUNT - 1].data == (sum & 0xFF));
+uint8_t MDB_ChecksumValidate() {
+	int sum = 0;
+	for (int i=0; i < (MDB_BUFFER_COUNT-1); i++)
+	sum += MDB_BUFFER[i].data;
+	if (MDB_BUFFER[MDB_BUFFER_COUNT-1].data == (sum & 0xFF)){
+		return 1;
+	}
+	else{
+		return 0;
+	}
 }
 
-/* Read one MDB byte into MDB_BUFFER (and update flags similar to original) */
+
 void MDB_read(void)
 {
     if (MDB_BUFFER_COUNT >= MDB_BUFFER_MAX) {
@@ -359,10 +362,7 @@ void MDB_read(void)
     }
 }
 
-/* MDB_Send() - send 'len' bytes; first byte is sent with 9th bit = 1 (address),
-   following bytes with 9th bit = 0 (data), matching original behavior.
-   data[] contains 8-bit values; we promote to 9-bit when sending.
-*/
+
 void MDB_Send(uint8_t data[], uint8_t len)
 {
     MDBReceiveErrorFlag = 0;
@@ -377,16 +377,16 @@ void MDB_Send(uint8_t data[], uint8_t len)
 
     /* send first byte with 9th bit = 1 */
     while (!(MDB_STATUS & MDB_DRE_IF)) { }
-    MDB_TXDATAL = data[0];
-	MDB_TXDATAH = 0x01;           /* 9th bit = 1 */
+		MDB_TXDATAL = data[0]; //amilek: switched the order because of the atmega4808 doc 23.3.2.3 
+		MDB_TXDATAH = 0x01;           /* 9th bit = 1 */
+    
 
     /* send remaining bytes with 9th bit = 0 */
     for (uint8_t i = 1; i < len; ++i)
     {
         while (!(MDB_STATUS & MDB_DRE_IF)) { }
 		MDB_TXDATAL = data[i];
-        MDB_TXDATAH = 0x00;
-
+		MDB_TXDATAH = 0x00;
     }
 }
 
@@ -394,7 +394,8 @@ void MDB_Send(uint8_t data[], uint8_t len)
 void MDB_ACK(void)
 {
     while (!(MDB_STATUS & MDB_DRE_IF)) { }
-    MDB_TXDATAL = 0x00;
+    MDB_TXDATAL = 0x00; //amilek: switched the order because of the atmega4808 doc 23.3.2.3
     MDB_TXDATAH = 0x00;
+    
 }
 
