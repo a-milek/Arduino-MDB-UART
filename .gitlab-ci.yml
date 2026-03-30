@@ -1,0 +1,29 @@
+stages:
+  - build
+
+variables:
+  ARDUINO_CORE: arduino:avr
+
+build-master:
+  stage: build
+  image: ubuntu:22.04
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y -qq curl make
+    - curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh
+    - mv bin/arduino-cli /usr/local/bin/
+    - arduino-cli core install $ARDUINO_CORE
+  script:
+    - TOOLCHAIN=$(find ~/.arduino15/packages/arduino/tools/avr-gcc -name "avr-gcc" -type f | head -1 | xargs dirname)
+    - make -C sources/MDB-UART-Master release TOOLCHAIN_PATH="$TOOLCHAIN"
+    - make -C sources/MDB-UART-Master size TOOLCHAIN_PATH="$TOOLCHAIN"
+  artifacts:
+    name: "MDB-UART-Master-${CI_COMMIT_SHORT_SHA}"
+    paths:
+      - sources/MDB-UART-Master/build/release/*.hex
+      - sources/MDB-UART-Master/build/release/*.eep
+    expire_in: 30 days
+  only:
+    - master
+    - atmega-4808-v2
+    - merge_requests
