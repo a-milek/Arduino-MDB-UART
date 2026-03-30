@@ -1,0 +1,41 @@
+name: Build
+
+on:
+  push:
+    branches: [master, atmega-4808-v2]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build-master:
+    name: MDB-UART-Master
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Arduino CLI
+        uses: arduino/setup-arduino-cli@v1
+
+      - name: Install AVR toolchain
+        run: arduino-cli core install arduino:avr
+
+      - name: Build (release)
+        working-directory: sources/MDB-UART-Master
+        run: |
+          TOOLCHAIN=$(find ~/.arduino15/packages/arduino/tools/avr-gcc -name "avr-gcc" -type f | head -1 | xargs dirname)
+          make release TOOLCHAIN_PATH="$TOOLCHAIN"
+
+      - name: Print size
+        working-directory: sources/MDB-UART-Master
+        run: |
+          TOOLCHAIN=$(find ~/.arduino15/packages/arduino/tools/avr-gcc -name "avr-gcc" -type f | head -1 | xargs dirname)
+          make size TOOLCHAIN_PATH="$TOOLCHAIN"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: MDB-UART-Master
+          path: |
+            sources/MDB-UART-Master/build/release/*.hex
+            sources/MDB-UART-Master/build/release/*.eep

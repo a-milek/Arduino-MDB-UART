@@ -247,3 +247,6 @@ ModelManifest.xml
 /Examples/MDBLib/MDBLib.targets
 /Examples/MDBLib/NuGet_publish.txt
 *.orig
+
+# Local build config (machine-specific toolchain paths)
+local.mk
