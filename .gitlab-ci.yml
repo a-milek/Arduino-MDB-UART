@@ -3,10 +3,15 @@ stages:
 
 variables:
   ARDUINO_CORE: arduino:avr
+  ARDUINO_DATA_DIR: $CI_PROJECT_DIR/.arduino15
 
 build-master:
   stage: build
   image: ubuntu:22.04
+  cache:
+    key: arduino-avr-core
+    paths:
+      - .arduino15/packages/arduino/
   before_script:
     - apt-get update -qq
     - apt-get install -y -qq curl make
@@ -14,7 +19,7 @@ build-master:
     - mv bin/arduino-cli /usr/local/bin/
     - arduino-cli core install $ARDUINO_CORE
   script:
-    - TOOLCHAIN=$(find ~/.arduino15/packages/arduino/tools/avr-gcc -name "avr-gcc" -type f | head -1 | xargs dirname)
+    - TOOLCHAIN=$(find $ARDUINO_DATA_DIR/packages/arduino/tools/avr-gcc -name "avr-gcc" -type f | head -1 | xargs dirname)
     - make -C sources/MDB-UART-Master release TOOLCHAIN_PATH="$TOOLCHAIN"
     - make -C sources/MDB-UART-Master size TOOLCHAIN_PATH="$TOOLCHAIN"
   artifacts:
