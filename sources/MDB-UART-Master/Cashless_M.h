@@ -35,9 +35,9 @@ typedef struct {
 	uint16_t SoftwareVersion;
 } cdiddata;
 
-cdiddata ReaderIDData[2];
-cdsetupdata ReaderSetupData[2];
-mdbdevice CashlessDevice[2];
+extern cdiddata ReaderIDData[2];
+extern cdsetupdata ReaderSetupData[2];
+extern mdbdevice CashlessDevice[2];
 
 void CashlessDeviceSetup(uint8_t index);
 void CashlessDeviceRequestExpansionID(uint8_t index);
@@ -48,7 +48,7 @@ void CashlessDeviceEnableOptFetures(uint8_t index);
 void ProcessReaderConfig(uint8_t index, uint8_t startindex);
 void ProcessReaderExpID(uint8_t index, MDB_Byte expiddata[], size_t expiddata_count);
 void ReaderVendRequest(uint8_t index, double price, uint16_t itemnumber);
-void ProcessReaderVendApproved(uint8_t index, MDB_Byte vendappdata[]);
+void ProcessReaderVendApproved(uint8_t index, MDB_Byte vendappdata[], size_t vendappdata_size);
 void ProcessReaderSessionBegin(uint8_t index, MDB_Byte sbdata[], size_t sbsize);
 void ProcessReaderError(uint8_t index, MDB_Byte errdata[]);
 void ReaderReset(uint8_t index);
@@ -67,7 +67,7 @@ void ReaderVendFailure(uint8_t index);
 void ReaderVendSuccess(uint8_t index, uint16_t itemnumber);
 void ReaderVendCancel(uint8_t index);
 void ReaderDataEntryResponse(uint8_t index, uint8_t Keys[8]);
-void ReaderProcessResponse(uint8_t index, uint8_t resp[]);
+void ReaderProcessResponse(uint8_t index, const char *contextdesc, uint8_t resp[]);
 
 
 

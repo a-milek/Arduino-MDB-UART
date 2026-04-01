@@ -4,51 +4,6 @@
 #include <avr/io.h>
 #include <stdint.h>
 #include "MDB_M.h"
-/* ---------- Select which USART is MDB and which is EXT ---------- */
-#define MDB_USART   USART1
-#define EXT_USART   USART0
-
-/* ---------- Baudrate calculation ---------- */
-//#define USART_BAUD(F_CPU, BAUD) ((uint16_t)((float)(F_CPU) * 64 / (16 * (BAUD)) + 0.5))
-
-// /* ---------- MDB macros ---------- */
-// #define MDB_BAUD      MDB_USART.BAUD
-// #define MDB_CTRLA     MDB_USART.CTRLA
-// #define MDB_CTRLB     MDB_USART.CTRLB
-// #define MDB_CTRLC     MDB_USART.CTRLC
-// #define MDB_STATUS    MDB_USART.STATUS
-// #define MDB_TXDATAL   MDB_USART.TXDATAL
-// #define MDB_TXDATAH   MDB_USART.TXDATAH
-// #define MDB_RXDATAL   MDB_USART.RXDATAL
-// #define MDB_RXDATAH   MDB_USART.RXDATAH
-// 
-// #define MDB_ENABLE_TX()     (MDB_CTRLB |= USART_TXEN_bm)
-// #define MDB_ENABLE_RX()     (MDB_CTRLB |= USART_RXEN_bm)
-// #define MDB_DISABLE_TX()    (MDB_CTRLB &= ~USART_TXEN_bm)
-// #define MDB_DISABLE_RX()    (MDB_CTRLB &= ~USART_RXEN_bm)
-
-//#define MDB_DRE_IF      (MDB_USART.DREIF_bm) amilek: declaration in USART_M_conf.h
-//#define MDB_RXC_IF      (MDB_USART.RXCIF_bm)
-
-/* ---------- EXT macros ---------- */
-// #define EXT_BAUD      EXT_USART.BAUD
-// #define EXT_CTRLA     EXT_USART.CTRLA
-// #define EXT_CTRLB     EXT_USART.CTRLB
-// #define EXT_CTRLC     EXT_USART.CTRLC
-// #define EXT_STATUS    EXT_USART.STATUS
-// #define EXT_TXDATAL   EXT_USART.TXDATAL
-// #define EXT_TXDATAH   EXT_USART.TXDATAH
-// #define EXT_RXDATAL   EXT_USART.RXDATAL
-// #define EXT_RXDATAH   EXT_USART.RXDATAH
-
-// #define EXT_ENABLE_TX()     (EXT_CTRLB |= USART_TXEN_bm)
-// #define EXT_ENABLE_RX()     (EXT_CTRLB |= USART_RXEN_bm)
-// #define EXT_DISABLE_TX()    (EXT_CTRLB &= ~USART_TXEN_bm)
-// #define EXT_DISABLE_RX()    (EXT_CTRLB &= ~USART_RXEN_bm)
-
-//#define EXT_DRE_IF      (EXT_USART.DREIF_bm)
-//#define EXT_RXC_IF      (EXT_USART.RXCIF_bm)
-
 /* ---------- Buffers ---------- */
 #define MDB_UART_BUFFER_MAX  64
 extern uint8_t EXT_UART_BUFFER[32];

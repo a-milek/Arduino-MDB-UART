@@ -20,9 +20,15 @@ make flash        # flash via avrdude
 make flash-eep    # flash EEPROM only
 ```
 
-**MDB-UART-Master** (ATmega4808) uses UPDI programming — set `PORT` in the Makefile to your USB-serial adapter (e.g. `COM3`). Default programmer: `serialupdi`.
+**MDB-UART-Master** (ATmega4808) uses UPDI programming. Default programmer: `serialupdi`. Default `F_CPU` is `3333333UL` (ATmega4808 internal oscillator).
 
 **MDB-SLAVE** (ATmega644P) uses ISP — default programmer: `usbasp`. Has a `make fuses` target for setting fuses (16 MHz external crystal).
+
+Create `local.mk` (not committed) in a project directory to override toolchain or port without editing the Makefile:
+```makefile
+TOOLCHAIN_PATH = C:/path/to/avr-gcc/bin
+PORT = COM3
+```
 
 The `.cproj` Atmel Studio files are kept for reference but are no longer the primary build mechanism.
 
@@ -64,9 +70,9 @@ Acts as the MDB bus master (VMC). Main loop in `main.c`:
    - Bill Validator (addr `0x33`) via `BillValidator_M.c`
 4. `DispatchDeviceLED()` — updates status LEDs based on `OfflinePollsCount`
 
-Each device is tracked by a `mdbdevice` struct (`Status`, `OfflinePollsCount`). `Status == 0` means offline/not initialized.
+Each device is tracked by a `mdbdevice` struct (`Status`, `OfflinePollsCount`). `Status` values: `0` = offline/not initialized, `1` = normal polling, `3` = alternative payout in progress, `4` = tube/stacker status poll due (every 666 cycles), `5` = extended diagnostic due (every 37 cycles). `OfflinePollsCount` reaching 0 drives `Status` back to 0. MDB base addresses are defined as constants in `MDB_M.h` (`ADDRESS_CHANGER`, `ADDRESS_VALIDATOR`, etc.); the poll subcommand adds `0x03` to the base address.
 
-External commands from the host arrive as ASCII strings terminated by `\r\n`. The parser lives in `ExternalCmd_M.c` / `EXTCMD_PROCESS()`. Command format uses `*` as delimiter (e.g., `DIAG*PING`, `WM*RVR*19.95*0`).
+External commands from the host arrive as ASCII strings terminated by `\r\n`. The parser lives in `ExternalCmd_M.c` / `EXTCMD_PROCESS()`. Fields are `*`-delimited; the first two fields are **numeric** top-level and second-level command codes (parsed with `atoi`). Examples: `9*1` = DIAG PING, `10*1` = SYS PING, `10*99` = soft reset, `1*3` = enable coin acceptance, `2*3` = enable bill acceptance. Responses are ASCII strings sent back over EXT UART (e.g. `SYS*PING*OK\r\n`).
 
 Settings (prices, device options) are stored in EEPROM and loaded at startup via `ReadSettings()` → `Settings_M.c`.
 

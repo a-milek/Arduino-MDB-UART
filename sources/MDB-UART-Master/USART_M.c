@@ -18,7 +18,6 @@
 #include "USART_M_conf.h"    
 
 
-#include "USART_M.h"
 #include "MDB_M.h"
 
 
@@ -52,9 +51,15 @@ void MDB_Setup(void)
     MDB_BAUD = (uint16_t)((float)F_CPU * 64.0f / (16.0f * 9600.0f) + 0.5f);
 
     // CTRLC: asynchronous, no parity, 1 stop bit, USART_CHSIZE_gp = 0x06 - 9-bit (Low byte first)
-    MDB_CTRLC = USART_CMODE_ASYNCHRONOUS_gc | USART_PMODE_DISABLED_gc | USART_SBMODE_2BIT_gc | (0x06 << USART_CHSIZE_gp);
+    MDB_CTRLC = USART_CMODE_ASYNCHRONOUS_gc | USART_PMODE_DISABLED_gc | USART_SBMODE_1BIT_gc | (0x06 << USART_CHSIZE_gp);
 
-	PORTC.DIRSET = PIN0_bm; //wmilek: added
+	PORTC.DIRSET = PIN0_bm; // wmilek: added
+	
+	// wmilek: The VMC may reset all peripherals by pulling the transmit line “active” for a minimum of	100 mS.
+	PORTC.OUTSET = PIN0_bm; 
+	delay_1ms(100);
+	PORTC.OUTCLR = PIN0_bm;
+	
 	//PORTC.PIN1CTRL |= PORT_INVEN_bm;
 
     /* CTRLB: enable TX and RX; to get 9-bit mode we set UCSZ2 bit (bit position differs by device) */
@@ -104,9 +109,7 @@ static void EXT_UART_TransmitC(uint8_t c)
 {
 
 	/* wait for Data Register Empty */
-	while (!(EXT_STATUS & EXT_DRE_IF)) {
-		DIAGLED_FLASH(2);
-	}
+	while (!(EXT_STATUS & EXT_DRE_IF)) { }
 
 	/* send byte with 9th bit = 0 */
 	EXT_TXDATAH = 0x00;
@@ -125,7 +128,7 @@ void EXT_UART_Transmit(uint8_t data[])
 		}
 		else
 		{
-			break;
+			continue;
 		}
 	}
 }
@@ -316,6 +319,7 @@ uint8_t MDB_ChecksumValidate() {
 	int sum = 0;
 	for (int i=0; i < (MDB_BUFFER_COUNT-1); i++)
 	sum += MDB_BUFFER[i].data;
+	
 	if (MDB_BUFFER[MDB_BUFFER_COUNT-1].data == (sum & 0xFF)){
 		return 1;
 	}
@@ -334,7 +338,8 @@ void MDB_read(void)
         return;
     }
 
-    MDB_getByte(&MDB_BUFFER[MDB_BUFFER_COUNT++]);
+    MDB_getByte(&MDB_BUFFER[MDB_BUFFER_COUNT]);
+	MDB_BUFFER_COUNT++;
 
     /* safety cap (original used 37) */
     if (MDB_BUFFER_COUNT >= MDB_BUFFER_MAX) {

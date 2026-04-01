@@ -25,7 +25,7 @@
 
 void MDBDebug()
 {
-	unsigned char * buff[32];
+	unsigned char buff[32];
 	XXXX_sprintf_FSTR((char*)buff, "Bytes count: %d, content: ", MDB_BUFFER_COUNT);
 	EXT_UART_Transmit_S((char*)buff);
 	for (int a = 0; a < MDB_BUFFER_COUNT - 1; a++)
@@ -87,7 +87,7 @@ void ProcessMDBResponse(uint8_t addr){
 							GetCoinHopperDispenserStatus(0);
 						}
 						break;
-						case 0x73:
+						case 0x70:
 						if (CoinHopperDevice[1].Status == 2)
 						{
 							CoinHopperDevice[1].Status = 1;
@@ -116,10 +116,10 @@ void ProcessMDBResponse(uint8_t addr){
 			if (BillValidatorDevice.OfflinePollsCount > 0) BillValidatorDevice.OfflinePollsCount--;
 			break;
 			case 0x58:
-			if (CashlessDevice[0].OfflinePollsCount > 0) CashlessDevice[0].OfflinePollsCount--;
+			if (CoinHopperDevice[0].OfflinePollsCount > 0) CoinHopperDevice[0].OfflinePollsCount--;
 			break;
 			case 0x70:
-			if (CashlessDevice[1].OfflinePollsCount > 0) CashlessDevice[1].OfflinePollsCount--;
+			if (CoinHopperDevice[1].OfflinePollsCount > 0) CoinHopperDevice[1].OfflinePollsCount--;
 			break;
 		}
 	}
@@ -146,12 +146,12 @@ void PollReader(uint8_t index)
 	uint8_t tmp2[2] = {addr, addr};
 	MDB_Send(tmp2, 2);
 
-	ReaderProcessResponse(index, (uint8_t*)"");
+	ReaderProcessResponse(index, "", NULL);
 }
 
 void DebugMDBMessage()
 {
-	uint8_t * buff[20];
+	uint8_t buff[20];
 	XXXX_sprintf_FSTR((char*)buff, "Bytes: %d\r\nHEX:", MDB_BUFFER_COUNT);
 	EXT_UART_Transmit_S((char*)buff);
 	for (int a = 0; a < MDB_BUFFER_COUNT - 1; a++){
@@ -165,6 +165,10 @@ void DebugMDBMessage()
 
 void MDBDeviceReset(uint8_t DevAddress)
 {
+	char buf[40];
+	sprintf(buf, "WMDIAG*%#x*RESET\r\n", DevAddress);
+	EXT_UART_Transmit_S(buf);
+	
 	uint8_t cmd[2] = {DevAddress, DevAddress};
 	MDB_Send(cmd, 2);
 	ProcessMDBResponse(DevAddress);

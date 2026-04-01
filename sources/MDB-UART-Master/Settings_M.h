@@ -64,11 +64,11 @@ typedef struct {
 	uint8_t EnableExtOptionsBits;
 } CoinHopperOptions_t;
 	
-VMCData_t VMCData;
-ReaderOptions_t ReaderOptions[2];
-CoinChangerOptions_t CoinChangerOptions;
-BillValidatorOptions_t BillValidatorOptions;
-CoinHopperOptions_t CoinHopperOptions[2];
+extern VMCData_t VMCData;
+extern ReaderOptions_t ReaderOptions[2];
+extern CoinChangerOptions_t CoinChangerOptions;
+extern BillValidatorOptions_t BillValidatorOptions;
+extern CoinHopperOptions_t CoinHopperOptions[2];
 
 void ReadVMCData(void);
 void ReadCashlessPrices(void);

@@ -24,7 +24,9 @@
 
 #include "myflash.h"
 
-
+cdiddata ReaderIDData[2];
+cdsetupdata ReaderSetupData[2];
+mdbdevice CashlessDevice[2];
 
 #define Z1  1
 #define Z2  2
@@ -38,6 +40,13 @@
 //
 // 7.4.2 SETUP - Config Data
 // 
+// b'DIAG:MDBSEND:1100 03 10 02 01 27\r\n'
+//
+// response: b'CD1*CFG1*3*268*1*2*89*1*1*1*1\r\n'
+//
+// b'DIAG:MDBSEND:1100 03 10 02 01 27\r\n'
+
+
 void CashlessDeviceSetup(uint8_t index)
 {
 	uint8_t tmpstr[80];
@@ -75,6 +84,7 @@ void CashlessDeviceSetup(uint8_t index)
 		{
 			MDB_ACK();
 			CDLED_ON(index);
+			EXT_UART_Transmit_HEXDUMP_MDBBYTE("DEVSETUP", MDB_BUFFER, MDB_BUFFER_COUNT);
 			ProcessReaderConfig(index, 0);
 			if (ReaderIDData[index].Monetary32bitSupported || ReaderIDData[index].MultiCurrencySupported)
 			{
@@ -144,9 +154,29 @@ void CashlessDeviceSetupPrices16bit(uint8_t index)
 	}
 }
 
+
+static uint8_t mdb_cmd_sum(uint8_t cmd[], size_t cmd_data_index) {
+	uint8_t sum = 0;
+	for(size_t k = 0; k <= cmd_data_index; k++) {
+		sum += cmd[k];
+	}
+	return sum;
+}
+
+// 7.4.3 SETUP ï¿½ Max / Min Prices
 void CashlessDeviceSetupPrices32bit(uint8_t index)
 {
 	uint8_t tmpstr[64];
+	
+	
+	if (ReaderOptions[index].ReaderOptFeatures.MonetaryFormat32bitEnabled == 0)  {
+			XXXX_sprintf_FSTR((char*)tmpstr,"CD%d*CFGPRICE2*FL_LOW", index + 1);
+			EXT_UART_Transmit_S((char*)tmpstr);
+			EXT_CRLF();
+			return;
+	}
+	
+	
 	uint8_t cmd[13];
 	if (!index)
 	{
@@ -164,9 +194,9 @@ void CashlessDeviceSetupPrices32bit(uint8_t index)
 	cmd[7] = ReaderOptions[index].MinPrice.Bytes[1];
 	cmd[8] = ReaderOptions[index].MinPrice.Bytes[2];
 	cmd[9] = ReaderOptions[index].MinPrice.Bytes[3];
-	cmd[8] = ReaderOptions[index].CountryOrCurrencyCode[0];
-	cmd[9] = ReaderOptions[index].CountryOrCurrencyCode[1];
-	cmd[10] = 0; // WM not initialized
+	cmd[10] = ReaderOptions[index].CountryOrCurrencyCode[0];
+	cmd[11] = ReaderOptions[index].CountryOrCurrencyCode[1];
+	
 	cmd[12] = (cmd[0] + cmd[1] + cmd[2] + cmd[3] + cmd[4] + cmd[5] + cmd[6] + cmd[7] + cmd[8] + cmd[9] + cmd[10] + cmd[11]) & 0xff;
 	MDB_Send(cmd, 13);
 	while (!MDBReceiveComplete){
@@ -260,9 +290,10 @@ void CashlessDeviceRequestExpansionID(uint8_t index)
 }
 
 //
-// 7.4.24 EXPANSION – Enable Options (Level 03 readers)
+// 7.4.24 EXPANSION ï¿½ Enable Options (Level 03 readers)
 void CashlessDeviceEnableOptFetures(uint8_t index)
 {
+	const uint8_t AskBeginSession = 0;
 	uint8_t tmpstr[64];
 	if (ReaderSetupData[index].ReaderFeatureLevel == 3)
 	{
@@ -271,7 +302,10 @@ void CashlessDeviceEnableOptFetures(uint8_t index)
 		cmd[1] = 0x04;
 		cmd[2] = 0x00;
 		cmd[3] = 0x00;
-		cmd[4] = 0x00;
+		cmd[4] = 0x00 | 
+		(
+		  (AskBeginSession == 1) << (9-8)
+		 );
 		//Enable all supported features
 		cmd[5] = 0x00 | 
 		(
@@ -372,16 +406,29 @@ void ProcessReaderExpID(uint8_t index, MDB_Byte expiddata[], size_t expiddata_co
 // WM: 7.4.4 POLL
 // WM: Reader Config Info (01H) Z1
 // WM: 7.4.2 SETUP - Config Data - description of Miscellaneous Options
+// e: b'CD1*CFG1*3*268*1*2*89*1*1*1*1\r\n'
 // WM b'CD1*CFG1*3*268*1*2*120*1*1*1*1\r\n'
 //               ^ level  
-//                  ^ country code
+//                  ^ country code 268 -> 0x010c leftmost is 0-> the International Telephone ?? 
 //                     ^ - ScalingFactor
 //                       ^ - DecimalPlaces 2
 //                         ^ - MaxResponseTime
 
+
+//    b'CD1*CFG1*1*268*1*2*89*1*1*1*1\r\n'
+  
+
 void ProcessReaderConfig(uint8_t index, uint8_t startindex)
 {
 	uint8_t tmpstr[80];
+	
+	if ( MDB_BUFFER[startindex + 1].data < 0x01 || MDB_BUFFER[startindex + 1].data > 0x03) {
+		XXXX_sprintf_FSTR((char*)tmpstr,"CD%d*CFG1*???", index + 1);
+		EXT_UART_Transmit_S((char*)tmpstr);
+		EXT_CRLF();
+		return;
+	}
+	
 	ReaderSetupData[index].ReaderFeatureLevel = MDB_BUFFER[startindex + 1].data;
 	ReaderSetupData[index].CountryOrCurrencyCode[0] = MDB_BUFFER[startindex + 2].data;
 	ReaderSetupData[index].CountryOrCurrencyCode[1] = MDB_BUFFER[startindex + 3].data;
@@ -399,30 +446,29 @@ void ProcessReaderConfig(uint8_t index, uint8_t startindex)
 	EXT_CRLF();
 }
 
-void ProcessReaderVendApproved(uint8_t index, MDB_Byte vendappdata[])
+void ProcessReaderVendApproved(uint8_t index, MDB_Byte vendappdata[], size_t vendappdata_size )
 {
 	uint8_t buff[10 + ReaderSetupData[index].DecimalPlaces];
 	uint8_t tmpstr[32];
-	unsigned long availablefundsdata;
-	if (sizeof(vendappdata) == 10)
+	uint32_t availablefundsdata;
+	if (vendappdata_size == 10)
 	{
-		availablefundsdata = vendappdata[1].data << 24;
-		availablefundsdata |= (vendappdata[2].data << 16) | (vendappdata[3].data << 8) | (vendappdata[4].data);
+		availablefundsdata = (uint32_t)vendappdata[1].data << 24 | ((uint32_t)vendappdata[2].data << 16) | ((uint32_t)vendappdata[3].data << 8) | ((uint32_t)vendappdata[4].data);
 	}
-	else if (sizeof(vendappdata) == 6)
+	else if (vendappdata_size == 6)
 	{
-		availablefundsdata = vendappdata[1].data << 8;
-		availablefundsdata |= vendappdata[2].data;
+		availablefundsdata = (uint32_t)vendappdata[1].data << 8 | (uint32_t)vendappdata[2].data;
 	}
 	else{
-	availablefundsdata=0xFFFFFF; //FIXME!
-	
+		availablefundsdata=0xFFFFFF; //FIXME!
 	}
 	dtostrf(availablefundsdata / pow(10, ReaderSetupData[index].DecimalPlaces),0,ReaderSetupData[index].DecimalPlaces,(char*)buff);
 	XXXX_sprintf_FSTR((char*)tmpstr,"CD%d*VAPPR*%s", index + 1, buff);
 	EXT_UART_Transmit_S((char*)tmpstr);
 	EXT_CRLF();
 }
+
+// WM: b'DIAG:RPR:0307d036373833000000b2\r\n'
 
 void ProcessReaderSessionBegin(uint8_t index, MDB_Byte sbdata[], size_t sbsize)
 {
@@ -443,8 +489,8 @@ void ProcessReaderSessionBegin(uint8_t index, MDB_Byte sbdata[], size_t sbsize)
 	{
 		case 34:
 		{
-			unsigned long availablefundsdata = sbdata[1].data << 24;
-			availablefundsdata |= (sbdata[2].data << 16) | (sbdata[3].data << 8) | (sbdata[4].data);
+			uint32_t availablefundsdata = (uint32_t)sbdata[1].data << 24 | ((uint32_t)sbdata[2].data << 16) | ((uint32_t)sbdata[3].data << 8) | ((uint32_t)sbdata[4].data);
+			
 			dtostrf(availablefundsdata / pow(10, ReaderSetupData[index].DecimalPlaces),0,ReaderSetupData[index].DecimalPlaces,(char*)buff);
 			uint8_t paymentmediaid[9];
 			uint8_t paymenttype[16];
@@ -619,25 +665,22 @@ void ReaderReset(uint8_t index)
 {
 	uint8_t addr = (index) ? 0x60 : 0x10;
 	uint8_t cmd[2] = { addr, addr };
-	EXT_UART_Transmit_S("WMRESETSND");
 	MDB_Send(cmd, 2);
-	ReaderProcessResponse(index, (uint8_t*)"RESET");
+	ReaderProcessResponse(index, "RESET", NULL);
 }
 
 void ProcessReaderRevalueLimit(uint8_t index, MDB_Byte rlimdata[])
 {
-	unsigned long availablefundsdata;
+	uint32_t availablefundsdata;
 	uint8_t tmpstr[32];
 	uint8_t buff[10];
 	if (sizeof(rlimdata) == 10)
 	{
-		availablefundsdata = rlimdata[1].data << 24;
-		availablefundsdata |= (rlimdata[2].data << 16) | (rlimdata[3].data << 8) | (rlimdata[4].data);
+		availablefundsdata = (uint32_t)rlimdata[1].data << 24 | ((uint32_t)rlimdata[2].data << 16) | ((uint32_t)rlimdata[3].data << 8) | ((uint32_t)rlimdata[4].data);
 	}
 	else if (sizeof(rlimdata) == 6)
 	{
-		availablefundsdata = rlimdata[1].data << 8;
-		availablefundsdata |= rlimdata[2].data;
+		availablefundsdata = (uint32_t)rlimdata[1].data << 8 | (uint32_t)rlimdata[2].data;
 	}
 	else{
 		availablefundsdata=0xFFFFFFF; //FIXME!
@@ -648,6 +691,7 @@ void ProcessReaderRevalueLimit(uint8_t index, MDB_Byte rlimdata[])
 	EXT_CRLF();
 }
 
+// WM ref: 7.3.1 Multi-Message Response Format
 void ReaderResponse(uint8_t index)
 {
 	uint8_t tmpstr[80];
@@ -661,6 +705,12 @@ void ReaderResponse(uint8_t index)
 	memcpy(&TMP, &MDB_BUFFER[0], MDB_BUFFER_COUNT * 2);
 	for (int i = 0; i < tmplen - 1; i++)
 	{
+		if (1) {
+			// WM: b'DIAG:RPR:0307d0da\r\n' - checksum hex(0x03 + 0x07 + 0xd0) = 0xda
+			XXXX_sprintf_FSTR(tmpstr,"WMDIAG:CD%d*RR:i:%d/%d", index + 1, i, MDB_BUFFER_COUNT);
+			EXT_UART_Transmit_S(tmpstr);
+			EXT_CRLF();
+		}
 		switch (TMP[i].data)
 		{
 			case 0x00: // JUST RESET
@@ -671,6 +721,8 @@ void ReaderResponse(uint8_t index)
 			CashlessDeviceSetupPrices16bit(index);
 			CashlessDeviceRequestExpansionID(index);
 			CashlessDeviceEnableOptFetures(index);
+			CashlessDeviceSetupPrices32bit(index);
+			
 			return;
 			case 0x01: // DISPLAY REQUEST
 			//memcpy(&tmpsetup[0], &TMP[i], 16);
@@ -698,29 +750,32 @@ void ReaderResponse(uint8_t index)
 				MDB_Byte sbdata[3];
 				memcpy(&sbdata, &TMP[i], 6);
 				ProcessReaderSessionBegin(index,sbdata, sizeof sbdata);
-				if (tmplen > 4) i += 3;
-			}
-			if (ReaderSetupData[index].ReaderFeatureLevel >= 2)
-			{
+				i += 3;
+			} else if (ReaderSetupData[index].ReaderFeatureLevel >= 2) {
 				//uint8_t buff[16];
-				if (!((ReaderSetupData[index].ReaderFeatureLevel == 3) && (ReaderOptions[index].ReaderOptFeatures.MonetaryFormat32bitEnabled || ReaderOptions[index].ReaderOptFeatures.MultiCurrEnabled)))
+				if (!(
+				
+						(ReaderSetupData[index].ReaderFeatureLevel == 3) && (ReaderOptions[index].ReaderOptFeatures.MonetaryFormat32bitEnabled || ReaderOptions[index].ReaderOptFeatures.MultiCurrEnabled))
+						)
 				{
 					MDB_Byte sbdata[10];
 					memcpy(&sbdata, &TMP[i], 20);
 					ProcessReaderSessionBegin(index,sbdata, sizeof sbdata);
-					if (tmplen > 10) i += 9;
+					i += 9;
 				} else
+				
 				{
 					MDB_Byte sbdata[17];
 					memcpy(&sbdata, &TMP[i], 34);
 					ProcessReaderSessionBegin(index,sbdata, sizeof sbdata);
-					if (tmplen > 17) i += 16;
+					i += 16;
 				}
 			}
 			break;
 			case 0x04: // SESSION CANCEL REQUEST
 			XXXX_sprintf_FSTR((char*)tmpstr,"CD%d*SCANCREQ", index + 1);
 			EXT_UART_Transmit_S((char*)tmpstr);
+			
 			EXT_CRLF();
 			break;
 			case 0x05: // VEND APROVED 
@@ -729,13 +784,13 @@ void ReaderResponse(uint8_t index)
 				{
 					MDB_Byte tmpvendappdata[5];
 					memcpy(&tmpvendappdata, &TMP[i], 10);
-					ProcessReaderVendApproved(index,tmpvendappdata);
+					ProcessReaderVendApproved(index,tmpvendappdata, 10);
 					i += 4;
 				} else
 				{
 					MDB_Byte tmpvendappdata[3];
 					memcpy(&tmpvendappdata, &TMP[i], 6);
-					ProcessReaderVendApproved(index,tmpvendappdata);
+					ProcessReaderVendApproved(index,tmpvendappdata, 6);
 					i += 2;
 				}
 			}
@@ -759,9 +814,12 @@ void ReaderResponse(uint8_t index)
 			if (tmplen > 2) i++;
 			break;
 			case 0x07: // END SESSION
-			XXXX_sprintf_FSTR((char*)tmpstr,"CD%d*SEND", index + 1);
-			EXT_UART_Transmit_S((char*)tmpstr);
-			EXT_CRLF();
+			{
+				XXXX_sprintf_FSTR((char*)tmpstr,"CD%d*SEND", index + 1);
+				EXT_UART_Transmit_S((char*)tmpstr);
+				EXT_CRLF();
+				
+			}
 			break;
 			case 0x08: // CANCELLED - response on 7.4.16 READER - Cancel
 			XXXX_sprintf_FSTR((char*)tmpstr,"CD%d*CNCLD", index + 1);
@@ -846,10 +904,19 @@ void ReaderResponse(uint8_t index)
 			XXXX_sprintf_FSTR((char*)tmpstr,"CD%d*DECNCL", index + 1);
 			EXT_UART_Transmit_S((char*)tmpstr);
 			EXT_CRLF();
-			//The user has pushed the reader’s RETURN button before completing the
+			//The user has pushed the readerï¿½s RETURN button before completing the
 			//DATA ENTRY. The VMC should terminate all DATA ENTRY activity in
 			//progress.
 			break;
+			
+			default:
+			{
+				XXXX_sprintf_FSTR((char*)tmpstr,"CD%d*RESP???", index + 1);
+				EXT_UART_Transmit_S((char*)tmpstr);
+				EXT_CRLF();
+			}
+			break;
+			
 		}
 	}
 }
@@ -876,7 +943,7 @@ void ReaderDataEntryResponse(uint8_t index, uint8_t Keys[8])
 	cmd[9] = Keys[7];
 	cmd[10] = (cmd[0] + cmd[1] + cmd[2] + cmd[3] + cmd[4] + cmd[5] + cmd[6] + cmd[7] + cmd[8] + cmd[9]) & 0xff;
 	MDB_Send(cmd, 11);
-	ReaderProcessResponse(index, (uint8_t*)"DERESP");
+	ReaderProcessResponse(index, "DERESP", NULL);
 }
 
 // 7.4.5 VEND - Request
@@ -884,20 +951,38 @@ void ReaderDataEntryResponse(uint8_t index, uint8_t Keys[8])
 //
 void ReaderVendRequest(uint8_t index, double price, uint16_t itemnumber)
 {
+	// b'DIAG*RVR5.2:4DIAG:MDBSEND:130000000208000421\r\n' - not working
+	// b'DIAG*RVR5.2:4DIAG:MDBSEND:130000000208000421\r\n'
+	// b'DIAG*RVR5.2:4DIAG:MDBSEND:13000000020800000000000001000000001e\r\n'
+
+	const uint8_t itemcount = 1;
+	const double optprice = 0;
 	uint32_t tmpprice = round((price * pow(10, ReaderSetupData[index].DecimalPlaces)) * pow(10, ReaderSetupData[index].DecimalPlaces)) / (ReaderSetupData[index].ScalingFactor * pow(10, ReaderSetupData[index].DecimalPlaces));
+	uint32_t tmpoptprice = round((optprice * pow(10, ReaderSetupData[index].DecimalPlaces)) * pow(10, ReaderSetupData[index].DecimalPlaces)) / (ReaderSetupData[index].ScalingFactor * pow(10, ReaderSetupData[index].DecimalPlaces));
 	if (ReaderOptions[index].ReaderOptFeatures.MonetaryFormat32bitEnabled || ReaderOptions[index].ReaderOptFeatures.MultiCurrEnabled)
 	{
-		uint8_t cmd[9];
+		uint8_t cmd[18];
 		cmd[0] = (index) ? 0x63 : 0x13;
 		cmd[1] = 0x00;
 		cmd[2] = (tmpprice >> 24) & 0xff;
 		cmd[3] = (tmpprice >> 16) & 0xff;
 		cmd[4] = (tmpprice >> 8) & 0xff;
-		cmd[5] = tmpprice & 0xff;
+		cmd[5] = (tmpprice >> 0 ) & 0xff; // Y5
 		cmd[6] = (itemnumber >> 8) & 0xff;
-		cmd[7] = itemnumber & 0xff;
-		cmd[8] = (cmd[0] + cmd[1] + cmd[2] + cmd[3] + cmd[4] + cmd[5] + cmd[6] + cmd[7]) & 0xff;
-		MDB_Send(cmd, 9);
+		cmd[7] = (itemnumber >> 8) & 0xff; // Y7
+		cmd[8] = 0; // Bytes intentionally skipped/excluded - can be set to 00h
+		cmd[9] = 0; // Bytes intentionally skipped/excluded - can be set to 00h
+		cmd[10] = 0; // Bytes intentionally skipped/excluded - can be set to 00h
+		cmd[11] = 0; // Bytes intentionally skipped/excluded - can be set to 00h
+		cmd[12] = itemcount & 0xff;
+		
+		
+		cmd[13] = (tmpoptprice >> 24) & 0xff;
+		cmd[14] = (tmpoptprice >> 16) & 0xff;
+		cmd[15] = (tmpoptprice >> 8) & 0xff;
+		cmd[16] = (tmpoptprice >> 0 ) & 0xff; // Y5
+		cmd[17] = mdb_cmd_sum(cmd, 16);
+		MDB_Send(cmd, 18);
 	} else
 	{
 		uint8_t cmd[7];
@@ -910,7 +995,7 @@ void ReaderVendRequest(uint8_t index, double price, uint16_t itemnumber)
 		cmd[6] = (cmd[0] + cmd[1] + cmd[2] + cmd[3] + cmd[4] + cmd[5]) & 0xff;
 		MDB_Send(cmd, 7);
 	}
-	ReaderProcessResponse(index, (uint8_t*)"VENDREQ");
+	ReaderProcessResponse(index, "VENDREQ", NULL);
 }
 
 void ReaderVendCancel(uint8_t index)
@@ -920,7 +1005,7 @@ void ReaderVendCancel(uint8_t index)
 	cmd[1] = 0x01;
 	cmd[2] = (cmd[0] + cmd[1]) & 0xff;
 	MDB_Send(cmd, 3);
-	ReaderProcessResponse(index, (uint8_t*)"VENDCANCEL");
+	ReaderProcessResponse(index, "VENDCANCEL", NULL);
 	//while (!MDBReceiveComplete){
 		//MDB_read();
 	//}
@@ -985,7 +1070,7 @@ void ReaderVendFailure(uint8_t index)
 	cmd[1] = 0x03;
 	cmd[2] = (cmd[0] + cmd[1]) & 0xff;
 	MDB_Send(cmd, 3);
-	ReaderProcessResponse(index, (uint8_t*)"VENDFAIL");
+	ReaderProcessResponse(index, "VENDFAIL", NULL);
 }
 
 // 7.4.9 SESSION COMPLETE
@@ -1006,7 +1091,7 @@ void ReaderSessionComplete(uint8_t index)
 	cmd[1] = 0x04;
 	cmd[2] = (cmd[0] + cmd[1]) & 0xff;
 	MDB_Send(cmd, 3);
-	ReaderProcessResponse(index, (uint8_t*)"SCOMPL");
+	ReaderProcessResponse(index, "SCOMPL", NULL);
 }
 
 //
@@ -1016,6 +1101,16 @@ void ReaderCashSale(uint8_t index, double price, uint16_t itemnumber)
 {
 	uint32_t tmpprice = round((price * pow(10, ReaderSetupData[index].DecimalPlaces)) * 100) / (ReaderSetupData[index].ScalingFactor * 100);
 	//uint8_t addr = (index) ? 0x60 : 0x10;
+	
+	
+		if (1) {
+			char tmpstr[32];
+			sprintf((char*)tmpstr,"WMDIAG*:%d:%d", ReaderSetupData[index].DecimalPlaces, ReaderSetupData[index].ScalingFactor);
+			EXT_UART_Transmit_S((char*)tmpstr);
+			EXT_CRLF();
+		}
+
+	
 	uint8_t cmd[7];
 	if (!index)
 	{
@@ -1026,12 +1121,12 @@ void ReaderCashSale(uint8_t index, double price, uint16_t itemnumber)
 	}
 	cmd[1] = 0x05;
 	cmd[2] = (tmpprice >> 8) & 0xff;
-	cmd[3] = tmpprice & 0xff;
+	cmd[3] = (tmpprice >> 0) & 0xff;
 	cmd[4] = (itemnumber >> 8) & 0xff;
 	cmd[5] = itemnumber & 0xff;
 	cmd[6] = (cmd[0] + cmd[1] + cmd[2] + cmd[3] + cmd[4] + cmd[5]) & 0xff;
 	MDB_Send(cmd, 7);
-	ReaderProcessResponse(index, (uint8_t*)"CSHSALE");
+	ReaderProcessResponse(index, "CSHSALE", NULL);
 }
 
 void ReaderCashSaleExp(uint8_t index, double price, uint16_t itemnumber, uint8_t currency[2])
@@ -1057,7 +1152,7 @@ void ReaderCashSaleExp(uint8_t index, double price, uint16_t itemnumber, uint8_t
 	cmd[9] = currency[1];
 	cmd[10] = (cmd[0] + cmd[1] + cmd[2] + cmd[3] + cmd[4] + cmd[5] + cmd[6] + cmd[7] + cmd[8] + cmd[9]) & 0xff;
 	MDB_Send(cmd, 11);
-	ReaderProcessResponse(index, (uint8_t*)"CSHSALE");
+	ReaderProcessResponse(index, "CSHSALE", NULL);
 }
 
 //
@@ -1083,7 +1178,7 @@ void ReaderNegativeVend(uint8_t index, double price, uint16_t itemnumber)
 	cmd[5] = itemnumber & 0xff;
 	cmd[6] = (cmd[0] + cmd[1] + cmd[2] + cmd[3] + cmd[4] + cmd[5]) & 0xff;
 	MDB_Send(cmd, 7);
-	ReaderProcessResponse(index, (uint8_t*)"NVEND");
+	ReaderProcessResponse(index, "NVEND", NULL);
 }
 
 // 
@@ -1114,7 +1209,7 @@ void ReaderNegativeVendExp(uint8_t index, double price, uint16_t itemnumber)
 	
 	cmd[8] = (cmd[0] + cmd[1] + cmd[2] + cmd[3] + cmd[4] + cmd[5] + cmd[6] + cmd[7]) & 0xff;
 	MDB_Send(cmd, 11); // WM: 11?
-	ReaderProcessResponse(index, (uint8_t*)"NVEND");
+	ReaderProcessResponse(index, "NVEND", NULL);
 }
 
 // action:
@@ -1135,7 +1230,7 @@ void ReaderEDC(uint8_t index, uint8_t action)
 	cmd[1] = action;//0x00 = Disable; 0x01 = Enable; 0x02 = Cancel
 	cmd[2] = (cmd[0] + cmd[1]) & 0xff;
 	MDB_Send(cmd, 3);
-	ReaderProcessResponse(index, (uint8_t*)"EDC");
+	ReaderProcessResponse(index, "EDC", NULL);
 }
 
 //
@@ -1158,7 +1253,7 @@ void ReaderRevalueRequest(uint8_t index, double amount)
 	cmd[3] = tmppamount & 0xff;
 	cmd[4] = (cmd[0] + cmd[1] + cmd[2] + cmd[3]) & 0xff;
 	MDB_Send(cmd, 5);
-	ReaderProcessResponse(index, (uint8_t*)"REVRQ");
+	ReaderProcessResponse(index, "REVRQ", NULL);
 }
 
 //
@@ -1183,7 +1278,7 @@ void ReaderRevalueRequestExp(uint8_t index, double amount)
 	cmd[5] = tmppamount & 0xff;
 	cmd[6] = (cmd[0] + cmd[1] + cmd[2] + cmd[3] + cmd[4] + cmd[5]) & 0xff;
 	MDB_Send(cmd, 7);
-	ReaderProcessResponse(index, (uint8_t*)"REVRQ");
+	ReaderProcessResponse(index, "REVRQ", NULL);
 }
 
 void ReaderRevalueLimitRequest(uint8_t index)
@@ -1200,7 +1295,7 @@ void ReaderRevalueLimitRequest(uint8_t index)
 	cmd[1] = 0x01;
 	cmd[2] = (cmd[0] + cmd[1]) & 0xff;
 	MDB_Send(cmd, 3);
-	ReaderProcessResponse(index, (uint8_t*)"RLIMRQ");
+	ReaderProcessResponse(index, "RLIMRQ", NULL);
 }
 
 void ReaderWriteDateTime(uint8_t index, uint8_t BCDDateTimeData[10])
@@ -1211,10 +1306,10 @@ void ReaderWriteDateTime(uint8_t index, uint8_t BCDDateTimeData[10])
 	memcpy(&cmd[2], &BCDDateTimeData, 10);
 	cmd[12] = (cmd[0] + cmd[1] + cmd[2] + cmd[3] + cmd[4] + cmd[5] + cmd[6] + cmd[7] + cmd[8] + cmd[9] + cmd[10] + cmd[11]) & 0xff;
 	MDB_Send(cmd, 13);
-	ReaderProcessResponse(index, (uint8_t*)"WTD");
+	ReaderProcessResponse(index, "WTD", NULL);
 }
 
-void ReaderProcessResponse(uint8_t index, uint8_t resp[])
+void ReaderProcessResponse(uint8_t index, const char *contextdesc, uint8_t resp[])
 {
 	uint8_t tmpstr[32];
 	//uint8_t * buff[6];
@@ -1238,23 +1333,19 @@ void ReaderProcessResponse(uint8_t index, uint8_t resp[])
 		if (MDB_BUFFER_COUNT > 1)
 		{
 			MDB_ACK();
-			//for (int a = 0; a < MDB_BUFFER_COUNT - 1; a++){
-			//sprintf(&buff, "%02x ", MDB_BUFFER[a].data);
-			//EXT_UART_Transmit(buff);
-			//}
-			//sprintf(&buff, "%02x ", MDB_BUFFER[MDB_BUFFER_COUNT - 1].data);
-			//EXT_UART_Transmit(buff);
-			//EXT_CRLF();
-			//return;
+			
+			
+			EXT_UART_Transmit_HEXDUMP_MDBBYTE("RPR", MDB_BUFFER, MDB_BUFFER_COUNT);
+			
 			ReaderResponse(index);
 			//return;
 		}
 		CDLED_ON(index);
 		if (MDB_BUFFER_COUNT == 1)
 		{
-			if (strlen((char*)resp) > 1)
+			if (strlen(contextdesc) > 1)
 			{
-				XXXX_sprintf_FSTR((char*)tmpstr,"CD%d*%s*", index + 1, resp);
+				XXXX_sprintf_FSTR((char*)tmpstr,"CD%d*%s*", index + 1, contextdesc);
 				EXT_UART_Transmit_S((char*)tmpstr);
 				if (MDB_BUFFER[0].data == 0x00 && MDB_BUFFER[0].mode)
 				{
@@ -1267,9 +1358,9 @@ void ReaderProcessResponse(uint8_t index, uint8_t resp[])
 		}
 	} else
 	{
-		if (resp[0] != 0x00)
+		if (strlen(contextdesc) > 1)
 		{
-			XXXX_sprintf_FSTR((char*)tmpstr,"CD%d*%s*", index + 1, resp);
+			XXXX_sprintf_FSTR((char*)tmpstr,"CD%d*%s*", index + 1, contextdesc);
 			EXT_UART_Transmit_S((char*)tmpstr);
 			EXT_UART_FAIL();
 			CDLED_OFF(index);
