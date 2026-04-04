@@ -28,11 +28,13 @@
 
 uint16_t IntCycles = 0;
 
-uint8_t Version[] = "1.1.1730a";
+uint8_t Version[] = "1.1.1731c";
 
 void Setup() {
 	MDB_Setup();
 	EXT_UART_Setup();
+	EXT_CRLF();
+	EXT_CRLF();
 	EXT_UART_Transmit_S("SYS*MDBSTART*");
 	EXT_UART_Transmit_S((char*)Version);
 	EXT_CRLF();
@@ -126,6 +128,8 @@ void DispatchCommandOrPoll()
 		if (BillValidatorIDData.BillRecyclingSupported) GetBVDispenserStatus();
 		BillValidatorDevice.Status = 1;
 		break;
+		
+		case 1:
 		default:// otherwise, just poll
 		PollDevice(0x33);
 		break;

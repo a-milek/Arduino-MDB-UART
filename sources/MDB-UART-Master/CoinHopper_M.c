@@ -41,31 +41,31 @@ void GetCoinHopperSetupData(uint8_t index)
 	}
 	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 	{
-		if (MDB_BUFFER_COUNT > 1)
+		if (MDB_BUFFER_COUNT > 0)
 		{
 			MDB_ACK();
 			CHLED_ON(index);
-			CoinHopperSetupData[index].DispenserFeatureLevel = MDB_BUFFER[0].data;
-			uint8_t cocd[2] = {MDB_BUFFER[1].data, MDB_BUFFER[2].data};
+			CoinHopperSetupData[index].DispenserFeatureLevel = MDB_BUFFER[0];
+			uint8_t cocd[2] = {MDB_BUFFER[1], MDB_BUFFER[2]};
 			CoinHopperSetupData[index].CountryOrCurrencyCode = BCDByteToInt(cocd, sizeof(cocd));
-			CoinHopperSetupData[index].CoinScalingFactor = MDB_BUFFER[3].data;
-			CoinHopperSetupData[index].DecimalPlaces = MDB_BUFFER[4].data;
-			CoinHopperSetupData[index].MaxResponseTime = MDB_BUFFER[5].data;
-			uint16_t tmpdc  = MDB_BUFFER[6].data;
-			tmpdc = (tmpdc << 8) | MDB_BUFFER[7].data;
+			CoinHopperSetupData[index].CoinScalingFactor = MDB_BUFFER[3];
+			CoinHopperSetupData[index].DecimalPlaces = MDB_BUFFER[4];
+			CoinHopperSetupData[index].MaxResponseTime = MDB_BUFFER[5];
+			uint16_t tmpdc  = MDB_BUFFER[6];
+			tmpdc = (tmpdc << 8) | MDB_BUFFER[7];
 			for (int i = 0; i < 16; i++)
 			{
 				CoinHopperSetupData[index].DisabledCoinTypes[i] = ((tmpdc & (1 << i)) != 0);
 			}
-			uint16_t tmpcsf  = MDB_BUFFER[8].data;
-			tmpcsf = (tmpcsf << 8) | MDB_BUFFER[9].data;
+			uint16_t tmpcsf  = MDB_BUFFER[8];
+			tmpcsf = (tmpcsf << 8) | MDB_BUFFER[9];
 			for (int i = 0; i < 16; i++)
 			{
 				CoinHopperSetupData[index].CoinSelfFilling[i] = ((tmpcsf & (1 << i)) != 0);
 			}
-			for (int i = 10; i < MDB_BUFFER_COUNT - 1; i++)
+			for (int i = 10; i < MDB_BUFFER_COUNT; i++)
 			{
-				CoinHopperSetupData[index].CoinTypeCredit[i - 7] = MDB_BUFFER[i].data;
+				CoinHopperSetupData[index].CoinTypeCredit[i - 7] = MDB_BUFFER[i];
 			}
 			char tmpstr[80];
 			uint8_t mcvbuff[5 + CoinHopperSetupData[index].DecimalPlaces];
@@ -85,8 +85,8 @@ void GetCoinHopperSetupData(uint8_t index)
 				EXT_CRLF();
 			}
 			} else {
-			if (MDB_BUFFER[0].data == 0x00){
-				
+			if (MDB_BUFFER[0] == 0x00){
+
 			}
 		}
 		} else {
@@ -116,12 +116,12 @@ void GetCoinHopperDispenserStatus(uint8_t index)
 	}
 	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 	{
-		if (MDB_BUFFER_COUNT > 1){
+		if (MDB_BUFFER_COUNT > 0){
 			MDB_ACK();
 			CHLED_ON(index);
-			uint16_t fullflags  = MDB_BUFFER[0].data;
-			fullflags = (fullflags << 8) | MDB_BUFFER[1].data;
-			for (int i = 2; i < MDB_BUFFER_COUNT - 1; i++)
+			uint16_t fullflags  = MDB_BUFFER[0];
+			fullflags = (fullflags << 8) | MDB_BUFFER[1];
+			for (int i = 2; i < MDB_BUFFER_COUNT; i++)
 			{
 				if (CoinHopperSetupData[index].DisabledCoinTypes[(i - 2) / 2] == 0)
 				{
@@ -129,8 +129,8 @@ void GetCoinHopperDispenserStatus(uint8_t index)
 					uint8_t buff[5 + CoinHopperSetupData[index].DecimalPlaces];
 					double coinvalue = (CoinHopperSetupData[index].CoinScalingFactor * CoinHopperSetupData[index].CoinTypeCredit[i]) / pow(10, CoinHopperSetupData[index].DecimalPlaces);
 					dtostrf(coinvalue,0,CoinHopperSetupData[index].DecimalPlaces,(char*)buff);
-					uint16_t coinsqty = MDB_BUFFER[i].data;
-					coinsqty = (coinsqty << 8) | MDB_BUFFER[i + 1].data;
+					uint16_t coinsqty = MDB_BUFFER[i];
+					coinsqty = (coinsqty << 8) | MDB_BUFFER[i + 1];
 					XXXX_sprintf_FSTR((char*)tmpstr,"CH%d*FILL*%s*%d*%d", index + 1, buff, coinsqty, fullflags & (1 << ((i - 2) / 2)));
 					if ((coinsqty == 0x00) && ((fullflags & (1 << ((i - 2) / 2))) == 1)) EXT_UART_Transmit_S("*ERR");
 					EXT_UART_Transmit_S((char*)tmpstr);
@@ -139,8 +139,8 @@ void GetCoinHopperDispenserStatus(uint8_t index)
 				}
 			}
 			} else{
-			if (MDB_BUFFER[0].data == 0x00){
-				
+			if (MDB_BUFFER[0] == 0x00){
+
 			}
 		}
 		} else {
@@ -157,32 +157,32 @@ void CoinHopperPollResponse(uint8_t index)
 	uint8_t tmpstr[64];
 	//uint8_t cvbuff[8];
 	uint16_t tmplen = MDB_BUFFER_COUNT;
-	MDB_Byte TMP[tmplen];
-	memcpy(&TMP, &MDB_BUFFER, MDB_BUFFER_COUNT * 2);
-	for (int i = 0; i < tmplen - 1; i++)
+	uint8_t TMP[tmplen];
+	memcpy(TMP, MDB_BUFFER, MDB_BUFFER_COUNT);
+	for (int i = 0; i < tmplen; i++)
 	{
-		if ((TMP[i].data >> 6) == 2)
+		if ((TMP[i] >> 6) == 2)
 		{
 			uint8_t dispmode[8];
 			uint8_t dispres[8];
-			if ((TMP[i].data & (1 << 4)) != 0) sprintf((char*)dispmode, "%s", "MANUAL"); else sprintf((char*)dispmode, "%s", "AUTO");
-			if ((TMP[i].data & (1 << 5)) != 0) sprintf((char*)dispres, "%s", "OK"); else sprintf((char*)dispres, "%s", "FAIL");
+			if ((TMP[i] & (1 << 4)) != 0) sprintf((char*)dispmode, "%s", "MANUAL"); else sprintf((char*)dispmode, "%s", "AUTO");
+			if ((TMP[i] & (1 << 5)) != 0) sprintf((char*)dispres, "%s", "OK"); else sprintf((char*)dispres, "%s", "FAIL");
 			uint8_t buff[5 + CoinHopperSetupData[index].DecimalPlaces];
-			double coinvalue = (CoinHopperSetupData[index].CoinScalingFactor * CoinHopperSetupData[index].CoinTypeCredit[TMP[i].data & 0x0f]) / pow(10, CoinHopperSetupData[index].DecimalPlaces);
+			double coinvalue = (CoinHopperSetupData[index].CoinScalingFactor * CoinHopperSetupData[index].CoinTypeCredit[TMP[i] & 0x0f]) / pow(10, CoinHopperSetupData[index].DecimalPlaces);
 			dtostrf(coinvalue,0,CoinHopperSetupData[index].DecimalPlaces,(char*)buff);
-			uint16_t coinsqty = TMP[i + 1].data;
-			coinsqty = (coinsqty << 8) | TMP[i + 2].data;
-			uint16_t coinsleft = TMP[i + 3].data;
-			coinsleft = (coinsleft << 8) | TMP[i + 4].data;
+			uint16_t coinsqty = TMP[i + 1];
+			coinsqty = (coinsqty << 8) | TMP[i + 2];
+			uint16_t coinsleft = TMP[i + 3];
+			coinsleft = (coinsleft << 8) | TMP[i + 4];
 			XXXX_sprintf_FSTR((char*)tmpstr,"CH%d*DISPENSED*%s*%s*%s*%d*%d", index + 1, dispmode, dispres, buff, coinsqty, coinsleft);
 			EXT_UART_Transmit_S((char*)tmpstr);
 			EXT_CRLF();
 			i += 4;
 		}
-		if ((TMP[i].data & 0xf0) == 0)
+		if ((TMP[i] & 0xf0) == 0)
 		{
 			uint8_t statusbuff[32];
-			switch (TMP[i].data & 0x0f)
+			switch (TMP[i] & 0x0f)
 			{
 				case 1:
 				sprintf((char*)statusbuff,"%s", "ESCROWREQ");
@@ -217,10 +217,10 @@ void CoinHopperPollResponse(uint8_t index)
 				case 11:
 				sprintf((char*)statusbuff,"%s", "JUSTRESET");
 				//The following initialization sequence is recommended for all new VMCs
-				//designed after July, 2000. It should be used after “power up”, after issuing
+				//designed after July, 2000. It should be used after ï¿½power upï¿½, after issuing
 				//the RESET command, after issuing the Bus Reset (pulling the transmit line
-				//“active” for a minimum of 100 mS), or anytime a POLL command results in a
-				//“JUST RESET” response (i.e., peripheral self resets).
+				//ï¿½activeï¿½ for a minimum of 100 mS), or anytime a POLL command results in a
+				//ï¿½JUST RESETï¿½ response (i.e., peripheral self resets).
 				CoinHopperDevice[index].Status = 1;
 				XXXX_sprintf_FSTR((char*)tmpstr,"CH%d*STATUS*%s", index + 1, &statusbuff);
 				EXT_UART_Transmit_S((char*)tmpstr);
@@ -273,7 +273,7 @@ void CoinHopperEnableManualDispenseCoinType(uint8_t index, uint8_t CoinType, uin
 	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 	{
 		CHLED_ON(index);
-		if (MDB_BUFFER_COUNT == 1 && MDB_BUFFER[0].data == 0x00)
+		if (MDB_RESPONSE_TYPE == MDB_RESP_ACK)
 		{
 			return;
 		}
@@ -306,7 +306,7 @@ void CoinHopperDispenseCoins(uint8_t index, uint8_t CoinType, uint16_t CoinsCoun
 		CHLED_ON(index);
 		XXXX_sprintf_FSTR((char*)tmpstr,"CH%d*DISPENSE*", index + 1);
 		EXT_UART_Transmit_S(tmpstr);
-		switch (MDB_BUFFER[0].data)
+		switch (MDB_BUFFER[0])
 		{
 			case 0x00:
 			CoinHopperDevice[index].Status = 2;//awaiting dispense
@@ -353,7 +353,7 @@ void CoinHopperDispenseValue(uint8_t index, uint16_t PayoutValue)
 		CHLED_ON(index);
 		XXXX_sprintf_FSTR((char*)tmpstr,"CH%d*SUMPAYOUT*", index + 1);
 		EXT_UART_Transmit_S(tmpstr);
-		switch (MDB_BUFFER[0].data)
+		switch (MDB_BUFFER[0])
 		{
 			case 0x00:
 			CoinHopperDevice[index].Status = 3;//awaiting dispense
@@ -395,13 +395,13 @@ void CoinHopperPayoutStatus(uint8_t index)
 	}
 	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 	{
-		if (!MDB_BUFFER[0].mode)
+		if (MDB_RESPONSE_TYPE == MDB_RESP_DATA)
 		{
 			MDB_ACK();
 			CHLED_ON(index);
-			for (int i = 0; i < MDB_BUFFER_COUNT - 1; i++)
+			for (int i = 0; i < MDB_BUFFER_COUNT; i++)
 			{
-				if (MDB_BUFFER[i].data > 0)
+				if (MDB_BUFFER[i] > 0)
 				{
 					XXXX_sprintf_FSTR((char*)tmpstr,"CH%d*PAYSTATUS*%d*", index + 1, (i / 2) + 1);
 					EXT_UART_Transmit_S(tmpstr);
@@ -410,8 +410,8 @@ void CoinHopperPayoutStatus(uint8_t index)
 					dtostrf(coinvalue,0,CoinHopperSetupData[index].DecimalPlaces,(char*)buff);
 					sprintf(tmpstr,"*%s", buff);
 					EXT_UART_Transmit_S(tmpstr);
-					uint16_t coinsqty = MDB_BUFFER[i].data;
-					coinsqty = (coinsqty << 8) | MDB_BUFFER[i + 1].data;
+					uint16_t coinsqty = MDB_BUFFER[i];
+					coinsqty = (coinsqty << 8) | MDB_BUFFER[i + 1];
 					sprintf((char*)buff,"*%d", coinsqty);
 					EXT_UART_Transmit(buff);
 					EXT_CRLF();
@@ -453,12 +453,12 @@ void GetCoinHopperPayoutValue(uint8_t index)
 	}
 	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 	{
-		if (!MDB_BUFFER[0].mode)
+		if (MDB_RESPONSE_TYPE == MDB_RESP_DATA)
 		{
 			MDB_ACK();
 			CHLED_ON(index);
-			uint16_t paidvalue = MDB_BUFFER[0].data;
-			paidvalue = (paidvalue << 8) | MDB_BUFFER[1].data;
+			uint16_t paidvalue = MDB_BUFFER[0];
+			paidvalue = (paidvalue << 8) | MDB_BUFFER[1];
 			uint8_t buff[5 + CoinHopperSetupData[index].DecimalPlaces];
 			double cpvalue = paidvalue / pow(10, CoinHopperSetupData[index].DecimalPlaces);
 			dtostrf(cpvalue,0,CoinHopperSetupData[index].DecimalPlaces,(char*)buff);
@@ -520,32 +520,32 @@ void GetCoinHopperIdentification(uint8_t index)
 				{
 					CoinHopperIDData[index].ModelRevision[i] = 0x00;
 				}
-				uint8_t tmpmfg[3] = {MDB_BUFFER[0].data, MDB_BUFFER[1].data, MDB_BUFFER[2].data};
+				uint8_t tmpmfg[3] = {MDB_BUFFER[0], MDB_BUFFER[1], MDB_BUFFER[2]};
 				memcpy(CoinHopperIDData[index].ManufacturerCode, tmpmfg, 3);
 				XXXX_sprintf_FSTR((char*)tmpstr,"CH%d*ID", index + 1);
 				EXT_UART_Transmit_S((char*)tmpstr);
 				EXT_UART_Transmit(CoinHopperIDData[index].ManufacturerCode);
-				uint8_t tmpsn[12] = {MDB_BUFFER[3].data, MDB_BUFFER[4].data, MDB_BUFFER[5].data, MDB_BUFFER[6].data, MDB_BUFFER[7].data, MDB_BUFFER[8].data, MDB_BUFFER[9].data, MDB_BUFFER[10].data, MDB_BUFFER[11].data, MDB_BUFFER[12].data, MDB_BUFFER[13].data, MDB_BUFFER[14].data};
+				uint8_t tmpsn[12] = {MDB_BUFFER[3], MDB_BUFFER[4], MDB_BUFFER[5], MDB_BUFFER[6], MDB_BUFFER[7], MDB_BUFFER[8], MDB_BUFFER[9], MDB_BUFFER[10], MDB_BUFFER[11], MDB_BUFFER[12], MDB_BUFFER[13], MDB_BUFFER[14]};
 				memcpy(CoinHopperIDData[index].SerialNumber,tmpsn, 12);
 				EXT_UART_Transmit_S("*");
 				EXT_UART_Transmit(CoinHopperIDData[index].SerialNumber);
-				uint8_t tmpmr[12] = {MDB_BUFFER[15].data, MDB_BUFFER[16].data, MDB_BUFFER[17].data, MDB_BUFFER[18].data, MDB_BUFFER[19].data, MDB_BUFFER[20].data, MDB_BUFFER[21].data, MDB_BUFFER[22].data, MDB_BUFFER[23].data, MDB_BUFFER[24].data, MDB_BUFFER[25].data, MDB_BUFFER[26].data};
+				uint8_t tmpmr[12] = {MDB_BUFFER[15], MDB_BUFFER[16], MDB_BUFFER[17], MDB_BUFFER[18], MDB_BUFFER[19], MDB_BUFFER[20], MDB_BUFFER[21], MDB_BUFFER[22], MDB_BUFFER[23], MDB_BUFFER[24], MDB_BUFFER[25], MDB_BUFFER[26]};
 				memcpy(CoinHopperIDData[index].ModelRevision,tmpmr, 12);
 				EXT_UART_Transmit_S("*");
 				EXT_UART_Transmit(CoinHopperIDData[index].ModelRevision);
-				uint8_t srd[2] = {MDB_BUFFER[27].data, MDB_BUFFER[28].data};
+				uint8_t srd[2] = {MDB_BUFFER[27], MDB_BUFFER[28]};
 				CoinHopperIDData[index].SoftwareVersion = BCDByteToInt(srd, sizeof(srd));
-				uint16_t flags  = MDB_BUFFER[29].data;
-				flags = (flags << 8) | MDB_BUFFER[30].data;
-				flags = (flags << 8) | MDB_BUFFER[31].data;
-				flags = (flags << 8) | MDB_BUFFER[32].data;
+				uint16_t flags  = MDB_BUFFER[29];
+				flags = (flags << 8) | MDB_BUFFER[30];
+				flags = (flags << 8) | MDB_BUFFER[31];
+				flags = (flags << 8) | MDB_BUFFER[32];
 				CoinHopperIDData[index].FTLSupported = ((flags & 0x01) == 1);
 				XXXX_sprintf_FSTR((char*)tmpstr,"*%d*%d", CoinHopperIDData[index].SoftwareVersion, CoinHopperIDData[index].FTLSupported);
 				EXT_UART_Transmit_S((char*)tmpstr);
 				EXT_CRLF();
 			} else
 			{
-				if (MDB_BUFFER[0].data == 0x00){
+				if (MDB_BUFFER[0] == 0x00){
 					
 				}
 			}

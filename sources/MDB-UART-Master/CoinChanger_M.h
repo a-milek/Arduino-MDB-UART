@@ -46,7 +46,7 @@ void CoinChangerControlledManualPayoutReport(void);
 void GetCoinChangerIdentification(void);
 void GetCoinChangerDiagnosticStatus(void);
 void CoinChangerDisableAcceptCoins(void);
-void CoinChangerEnableAcceptCoins(void);
+void CoinChangerEnableAcceptCoins(uint16_t EnableAcceptCoinsBitsMask, uint16_t EnableDispenseCoinsBitsMask);
 void CoinChangerEnableCoinType(uint8_t CoinType, uint8_t EnableAccept, uint8_t EnableDispense);
 void CoinChangerConfigFeatures(uint8_t AlternativePayout, uint8_t ExtendedDiagnostic, uint8_t ControlledManualFillAndPayout);
 

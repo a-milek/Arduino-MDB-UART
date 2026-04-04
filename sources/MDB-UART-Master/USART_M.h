@@ -7,33 +7,27 @@
 /* ---------- Buffers ---------- */
 #define MDB_UART_BUFFER_MAX  64
 extern uint8_t EXT_UART_BUFFER[32];
-//extern MDB_Byte MDB_BUFFER[37]; amilek: proper declaration in MDB_M.h
 volatile uint8_t EXT_UART_BUFFER_COUNT;
-//volatile uint8_t MDB_BUFFER_COUNT; amilek:duplicated declaration in MDB_M.h
 volatile uint8_t EXTCMDCOMPLETE;
 
+/* MDB receiving flags */
+extern volatile uint8_t MDBReceiveComplete;
+extern volatile uint8_t MDBReceiveErrorFlag;
 
-//MDB receiving flags
-extern volatile uint8_t MDBReceiveComplete;  //MDB message receive completed flag
-extern volatile uint8_t MDBReceiveErrorFlag;  //MDB message receive error flag
 void MDB_Setup(void);
 void EXT_UART_Setup(void);
 void EXT_UART_Transmit(uint8_t data[]);
-
 void EXT_CRLF(void);
 void EXT_UART_FAIL(void);
 void EXT_UART_OK(void);
 void EXT_UART_NAK(void);
 void MDB_ACK(void);
 void MDB_Send(uint8_t data[], uint8_t len);
-void MDB_getByte(MDB_Byte* mdbb);
 void MDB_read(void);
 void EXT_UART_Transmit_S(const char* string);
 void EXT_UART_Transmit_UN(const uint8_t data[], size_t size);
 void EXT_UART_Transmit_SN(const char* string, size_t maxlen);
 void EXT_UART_Transmit_HEXDUMP(const char *prefix, void *p, size_t size);
-void EXT_UART_Transmit_HEXDUMP_MDBBYTE(const char *prefix, MDB_Byte mdbdata[], size_t mdbdata_count);
-uint8_t MDB_ChecksumValidate(void);
 int MDB_Receive(void);
 void delay_1ms(uint16_t ms);
 #define EXT_RXC_vect        USART0_RXC_vect

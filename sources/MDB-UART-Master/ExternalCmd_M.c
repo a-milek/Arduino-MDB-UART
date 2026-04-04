@@ -15,6 +15,7 @@
 #include "CoinChanger_M.h"
 #include "BillValidator_M.h"
 #include "CoinHopper_M.h"
+#include "Cashless_M.h"
 #include "USART_M.h"
 #include "Settings_M.h"
 #include <stdlib.h> 
@@ -24,15 +25,6 @@
 void extcmd_process_9diagnostic(uint16_t secondlevelcmd, char tmp[][6], size_t tmpcnt) {
 
 
-	for(size_t z = 0; z < tmpcnt; z++) {
-		EXT_UART_Transmit(">");
-		EXT_UART_Transmit(tmp[z]);
-		EXT_UART_Transmit("<");
-		EXT_CRLF();
-	}
-	
-
-	
 	switch(secondlevelcmd) {
 		case 1:
 		 {
@@ -42,6 +34,7 @@ void extcmd_process_9diagnostic(uint16_t secondlevelcmd, char tmp[][6], size_t t
 		 break;
 		case 2:
 		{
+			// ref 7.4.1 Reset and Initialising
 			CashlessDeviceSetup(0);
 			EXT_UART_Transmit_S("WMDIAG*PRICES16");
 			CashlessDeviceSetupPrices16bit(0);
@@ -49,6 +42,7 @@ void extcmd_process_9diagnostic(uint16_t secondlevelcmd, char tmp[][6], size_t t
 			CashlessDeviceRequestExpansionID(0);
 			EXT_UART_Transmit_S("WMDIAG*OPT");
 			CashlessDeviceEnableOptFetures(0);
+			CashlessDeviceSetupPrices32bit(0);
 		
 			EXT_UART_Transmit_S("DIAG*ENABLE");
 			ReaderEDC(0, 0x01);
@@ -60,6 +54,7 @@ void extcmd_process_9diagnostic(uint16_t secondlevelcmd, char tmp[][6], size_t t
 				EXT_UART_Transmit_S(tmp[0]);
 				EXT_UART_Transmit_S(":");
 				EXT_UART_Transmit_S(tmp[1]);
+				EXT_CRLF();
 			if (tmpcnt >= 2) {
 				double price = strtod(tmp[0], NULL);
 				uint16_t itemnumber = atoi(tmp[1]);
@@ -69,7 +64,10 @@ void extcmd_process_9diagnostic(uint16_t secondlevelcmd, char tmp[][6], size_t t
 		break;
 		case 4:
 		{
-			ReaderVendSuccess(0);
+			if (tmpcnt >= 1) {
+				uint16_t itemnumber = atoi(tmp[0]);
+				ReaderVendSuccess(0, itemnumber);
+			}
 		}
 		break;
 
@@ -95,9 +93,50 @@ void extcmd_process_9diagnostic(uint16_t secondlevelcmd, char tmp[][6], size_t t
 			ReaderVendFailure(0);
 		}
 		break;
+		
+		
+		case 9: {
+			if (tmpcnt >= 2) {
+				double price = strtod(tmp[0], NULL);
+				uint16_t itemnumber = atoi(tmp[1]);
+				ReaderCashSale(0, price, itemnumber);
+			}
+		}
+		break;
+		
+		case 10: {
+			ReaderVendCancel(0);
+		}
+		break;
 
 	}
 }
+
+void extcmd_process_10system(uint16_t secondlevelcmd, char tmp[][6], size_t tmpcnt) {
+	switch(secondlevelcmd) {
+		case 1:
+		{
+			EXT_UART_Transmit_S("SYS*PING*OK");
+			EXT_CRLF();
+		}
+		break;
+		case 99: 
+		{
+			EXT_UART_Transmit_S("SYS*RESET*OK");
+			EXT_CRLF();
+			delay_1ms(10);
+			CPU_CCP = CCP_IOREG_gc;
+			RSTCTRL.SWRR = (1 << RSTCTRL_SWRE_bp);
+			while(1) {};
+		}
+		break;
+		
+		default:
+		break;
+	
+	}
+}
+	
 
 void EXTCMD_PROCESS() {//receive commands from VMC
 	int cnt = 0;
@@ -159,7 +198,21 @@ void EXTCMD_PROCESS() {//receive commands from VMC
 				GetCoinChangerIdentification();
 				break;
 				case 3:
-				CoinChangerEnableAcceptCoins();
+				{
+					// "1*3*+")
+					// "1*3*65535*+ 
+					// "1*3*65535*65535*+
+					uint16_t EnableAcceptCoinsBitsMask = 0xffff;
+					uint16_t EnableDispenseCoinsBitsMask = 0xffff;
+					if (cnt >= 3) {
+						EnableAcceptCoinsBitsMask = atoi(tmp[3]);
+					}
+					if (cnt >= 4) {
+						EnableDispenseCoinsBitsMask = atoi(tmp[4]);
+					}
+					
+					CoinChangerEnableAcceptCoins(EnableAcceptCoinsBitsMask, EnableDispenseCoinsBitsMask);	
+				}
 				break;
 				case 4:
 				CoinChangerDisableAcceptCoins();
@@ -193,6 +246,16 @@ void EXTCMD_PROCESS() {//receive commands from VMC
 				if (cnt == 5)
 				{
 					CoinChangerConfigFeatures(atoi((char*)&tmp[2]),atoi((char*)&tmp[3]),atoi((char*)&tmp[4]));
+				}
+				break;
+				
+				case 0x0a: //TUBE STATUS
+				{
+					EXT_UART_Transmit_S("WMDIAG*9");
+					EXT_CRLF();
+					GetCoinChangerTubeStatus();
+					EXT_UART_Transmit_S("WMDIAG*10");
+					EXT_CRLF();
 				}
 				break;
 			}
@@ -285,6 +348,11 @@ void EXTCMD_PROCESS() {//receive commands from VMC
 			case 9: // WM diag
 			{
 				extcmd_process_9diagnostic(secondlevelcmd, &tmp[2], tmpcnt-2);
+			}
+			break;
+			case 10: // system 
+			{
+				extcmd_process_10system(secondlevelcmd, &tmp[2], tmpcnt-2);
 			}
 			break;
 			

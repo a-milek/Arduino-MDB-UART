@@ -33,20 +33,20 @@ void BillValidatorPollResponse()
 	  uint16_t tmplen = (MDB_BUFFER_COUNT < MAX_MDB_BUFFER) ? MDB_BUFFER_COUNT : MAX_MDB_BUFFER;
 
 	  // fixed-size TMP buffer
-	  MDB_Byte TMP[MAX_MDB_BUFFER];
+	  uint8_t TMP[MAX_MDB_BUFFER];
 
-	  // copy from volatile buffer with proper cast
-	  memcpy(TMP, (const MDB_Byte*) MDB_BUFFER, tmplen * sizeof(MDB_Byte));
+	  // copy from volatile buffer
+	  memcpy(TMP, MDB_BUFFER, tmplen);
 
-	for (uint8_t i = 0; i < tmplen - 1; i++)
+	for (uint8_t i = 0; i < tmplen; i++)
 	{
-		switch ((TMP[i].data & 0x80) >> 7)
+		switch ((TMP[i] & 0x80) >> 7)
 		{
 			case 0://Status
-			switch ((TMP[i].data & 0xE0) >> 5)
+			switch ((TMP[i] & 0xE0) >> 5)
 			{
 				case 0://Bill Validator status
-				status = TMP[i].data & 0x0F;
+				status = TMP[i] & 0x0F;
 				switch (status)
 				{
 					case 1:
@@ -64,7 +64,7 @@ void BillValidatorPollResponse()
 					case 5:
 					sprintf(statusbuff,"%s", "JAM");
 					break;
-					case 6:
+					case 6: // (00000110) Validator was reset1 - The validator has been reset since the last POLL.
 					BillValidatorDevice.Status = 1;
 					EXT_UART_Transmit_S("BV*STATUS*JUSTRESET");
 					EXT_CRLF();
@@ -86,13 +86,13 @@ void BillValidatorPollResponse()
 					case 9:
 					sprintf(statusbuff,"%s", "DISABLED");
 					break;
-					case 10:
+					case 10: // 00001010 Invalid Escrow request
 					sprintf(statusbuff,"%s", "INVESCROW");
 					break;
 					case 11:
 					sprintf(statusbuff,"%s", "REJECT");
 					break;
-					case 12:
+					case 12: // 00001100) Possible Credited Bill Removal
 					XXX_sprintf_s(statusbuff,"%s","FISHING");
 					sprintf(statusbuff,"%s", "FISHING");
 					break;
@@ -102,7 +102,7 @@ void BillValidatorPollResponse()
 				EXT_CRLF();
 				break;
 				case 1://Bill Recycler status
-				status = TMP[i].data & 0x0F;
+				status = TMP[i] & 0x0F;
 				switch (status)
 				{
 					case 1:
@@ -146,7 +146,7 @@ void BillValidatorPollResponse()
 				EXT_CRLF();
 				break;
 				case 2://Number of attempts to input a bill while validator is disabled
-				status = (TMP[i].data & 0x1F);//bits 5-7 of byte 1
+				status = (TMP[i] & 0x1F);//bits 5-7 of byte 1
 				XXXX_sprintf_FSTR((char*)tmpstr,"BV*ATTEMPTS*%d", status);
 				EXT_UART_Transmit_S((char*)tmpstr);
 				EXT_CRLF();
@@ -155,7 +155,7 @@ void BillValidatorPollResponse()
 			break;
 			case 1://Bills Accepted
 			{
-				uint16_t routedata = (((TMP[i].data) & 0x70) >> 4);//bits 5-7 of byte 1
+				uint16_t routedata = (((TMP[i]) & 0x70) >> 4);//bits 5-7 of byte 1
 				uint8_t route[8];
 				switch (routedata)
 				{
@@ -184,7 +184,7 @@ void BillValidatorPollResponse()
 					XXX_sprintf_s(route,"%s", "REC2CB");
 					break;
 				}
-				billtype = TMP[i].data & 0x0f;
+				billtype = TMP[i] & 0x0f;
 				uint8_t buff[7 + BillValidatorSetupData.DecimalPlaces];
 				double billvalue = BillValidatorSetupData.BillScalingFactor * (BillValidatorSetupData.BillTypeCredit[billtype] / pow(10, BillValidatorSetupData.DecimalPlaces));
 				dtostrf(billvalue,0,BillValidatorSetupData.DecimalPlaces,(char*)buff);
@@ -224,7 +224,7 @@ void GetBillValidatorIdentification()
 	}
 	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 	{
-		if (MDB_BUFFER_COUNT > 1)
+		if (MDB_BUFFER_COUNT > 0)
 		{
 			MDB_ACK();
 			BillValidatorDevice.OfflinePollsCount = 10;
@@ -240,26 +240,26 @@ void GetBillValidatorIdentification()
 			{
 				BillValidatorIDData.ModelRevision[i] = 0x00;
 			}
-			uint8_t tmpmfg[3] = {MDB_BUFFER[0].data, MDB_BUFFER[1].data, MDB_BUFFER[2].data};
+			uint8_t tmpmfg[3] = {MDB_BUFFER[0], MDB_BUFFER[1], MDB_BUFFER[2]};
 			memcpy(BillValidatorIDData.ManufacturerCode, &tmpmfg, 3);
 			EXT_UART_Transmit_S("BV*ID*");
-			EXT_UART_Transmit(BillValidatorIDData.ManufacturerCode);
-			uint8_t tmpsn[12] = {MDB_BUFFER[3].data, MDB_BUFFER[4].data, MDB_BUFFER[5].data, MDB_BUFFER[6].data, MDB_BUFFER[7].data, MDB_BUFFER[8].data, MDB_BUFFER[9].data, MDB_BUFFER[10].data, MDB_BUFFER[11].data, MDB_BUFFER[12].data, MDB_BUFFER[13].data, MDB_BUFFER[14].data};
+			EXT_UART_Transmit_UN(BillValidatorIDData.ManufacturerCode, sizeof(BillValidatorIDData.ManufacturerCode));
+			uint8_t tmpsn[12] = {MDB_BUFFER[3], MDB_BUFFER[4], MDB_BUFFER[5], MDB_BUFFER[6], MDB_BUFFER[7], MDB_BUFFER[8], MDB_BUFFER[9], MDB_BUFFER[10], MDB_BUFFER[11], MDB_BUFFER[12], MDB_BUFFER[13], MDB_BUFFER[14]};
 			memcpy(BillValidatorIDData.SerialNumber,&tmpsn, 12);
 			EXT_UART_Transmit_S("*");
-			EXT_UART_Transmit(BillValidatorIDData.SerialNumber);
-			uint8_t tmpmr[12] = {MDB_BUFFER[15].data, MDB_BUFFER[16].data, MDB_BUFFER[17].data, MDB_BUFFER[18].data, MDB_BUFFER[19].data, MDB_BUFFER[20].data, MDB_BUFFER[21].data, MDB_BUFFER[22].data, MDB_BUFFER[23].data, MDB_BUFFER[24].data, MDB_BUFFER[25].data, MDB_BUFFER[26].data};
+			EXT_UART_Transmit_UN(BillValidatorIDData.SerialNumber, sizeof(BillValidatorIDData.SerialNumber));
+			uint8_t tmpmr[12] = {MDB_BUFFER[15], MDB_BUFFER[16], MDB_BUFFER[17], MDB_BUFFER[18], MDB_BUFFER[19], MDB_BUFFER[20], MDB_BUFFER[21], MDB_BUFFER[22], MDB_BUFFER[23], MDB_BUFFER[24], MDB_BUFFER[25], MDB_BUFFER[26]};
 			memcpy(BillValidatorIDData.ModelRevision, &tmpmr, 12);
 			EXT_UART_Transmit_S("*");
-			EXT_UART_Transmit(BillValidatorIDData.ModelRevision);
-			uint8_t srd[2] = {MDB_BUFFER[27].data, MDB_BUFFER[28].data};
+			EXT_UART_Transmit_UN(BillValidatorIDData.ModelRevision, sizeof(BillValidatorIDData.ModelRevision));
+			uint8_t srd[2] = {MDB_BUFFER[27], MDB_BUFFER[28]};
 			BillValidatorIDData.SoftwareVersion = BCDByteToInt(srd, sizeof(srd));
-			if (BillValidatorSetupData.BillValidatorFeatureLevel == 2 && MDB_BUFFER_COUNT == 33)
+			if (BillValidatorSetupData.BillValidatorFeatureLevel == 2 && MDB_BUFFER_COUNT == 32)
 			{
-				uint16_t flags  = MDB_BUFFER[29].data;
-				flags = (flags << 8) | MDB_BUFFER[30].data;
-				flags = (flags << 8) | MDB_BUFFER[31].data;
-				flags = (flags << 8) | MDB_BUFFER[32].data;
+				uint16_t flags  = MDB_BUFFER[29];
+				flags = (flags << 8) | MDB_BUFFER[30];
+				flags = (flags << 8) | MDB_BUFFER[31];
+				flags = (flags << 8) | MDB_BUFFER[32];
 				BillValidatorIDData.FTLSupported = ((flags & (1 << 0)) != 0);
 				BillValidatorIDData.BillRecyclingSupported = ((flags & (1 << 1)) != 0);
 			}
@@ -268,9 +268,9 @@ void GetBillValidatorIdentification()
 			EXT_CRLF();
 		} else
 		{
-			if (MDB_BUFFER[0].data == 0x00)
+			if (MDB_BUFFER[0] == 0x00)
 			{
-				
+
 			}
 		}
 	} else
@@ -300,7 +300,7 @@ void BillValidatorEnableFeatures()
 	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 	{
 		BillValidatorDevice.OfflinePollsCount = 10;
-		if (MDB_BUFFER_COUNT == 1 && MDB_BUFFER[0].data == 0x00)
+		if (MDB_RESPONSE_TYPE == MDB_RESP_ACK)
 		{
 			EXT_UART_OK();
 			//BillValidatorIDData.BillRecyclingSupported = 1;
@@ -325,10 +325,10 @@ void GetBillRecyclerSetupData()
 	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 	{
 		BillValidatorDevice.OfflinePollsCount = 10;
-		if (MDB_BUFFER_COUNT == 3)
+		if (MDB_BUFFER_COUNT == 2)
 		{
-			uint16_t tmpcr  = MDB_BUFFER[0].data;
-			tmpcr = (tmpcr << 8) | MDB_BUFFER[1].data;
+			uint16_t tmpcr  = MDB_BUFFER[0];
+			tmpcr = (tmpcr << 8) | MDB_BUFFER[1];
 			for (int i = 0; i < 16; i++)
 			{
 				BillValidatorSetupData.BillRecycleEnabled[i] = ((tmpcr >> i) & 1);
@@ -370,7 +370,7 @@ void BillValidatorRecyclerEnable()
 	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 	{
 		BillValidatorDevice.OfflinePollsCount = 10;
-		if (MDB_BUFFER_COUNT == 1 && MDB_BUFFER[0].data == 0x00)
+		if (MDB_RESPONSE_TYPE == MDB_RESP_ACK)
 		{
 			EXT_UART_OK();
 			//BillValidatorIDData.BillRecyclingSupported = 1;
@@ -410,7 +410,7 @@ void BillValidatorRecyclerDisable()
 	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 	{
 		BillValidatorDevice.OfflinePollsCount = 10;
-		if (MDB_BUFFER_COUNT == 1 && MDB_BUFFER[0].data == 0x00)
+		if (MDB_RESPONSE_TYPE == MDB_RESP_ACK)
 		{
 			EXT_UART_OK();
 			//BillValidatorIDData.BillRecyclingSupported = 1;
@@ -432,17 +432,17 @@ void GetBVDispenserStatus()
 	}
 	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 	{
-		if (MDB_BUFFER_COUNT > 1)
+		if (MDB_BUFFER_COUNT > 0)
 		{
 			MDB_ACK();
 			BillValidatorDevice.OfflinePollsCount = 10;
-			uint16_t fullflags  = MDB_BUFFER[0].data;
-			fullflags = (fullflags << 8) | MDB_BUFFER[1].data;
-			for (int i = 2; i < MDB_BUFFER_COUNT - 1; i++)
+			uint16_t fullflags  = MDB_BUFFER[0];
+			fullflags = (fullflags << 8) | MDB_BUFFER[1];
+			for (int i = 2; i < MDB_BUFFER_COUNT; i++)
 			{
 				uint8_t tmpstr[64];
-				uint16_t billtypecount = MDB_BUFFER[i].data;
-				billtypecount = (billtypecount << 8) | MDB_BUFFER[i + 1].data;
+				uint16_t billtypecount = MDB_BUFFER[i];
+				billtypecount = (billtypecount << 8) | MDB_BUFFER[i + 1];
 				uint8_t billtype = (i - 2) / 2;
 				uint8_t buff[6 + BillValidatorSetupData.DecimalPlaces];
 				double billvalue = BillValidatorSetupData.BillScalingFactor * (BillValidatorSetupData.BillTypeCredit[billtype] / pow(10, BillValidatorSetupData.DecimalPlaces));
@@ -490,7 +490,7 @@ void BVDispenseBills(uint8_t BillType, uint16_t Number)
 		if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 		{
 			BillValidatorDevice.OfflinePollsCount = 10;
-			switch (MDB_BUFFER[0].data)
+			switch (MDB_BUFFER[0])
 			{
 				case 0x00:
 				BillValidatorDevice.Status = 3;
@@ -540,7 +540,7 @@ void BVDispenseValue(uint16_t PayoutValue)
 		if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 		{
 			BillValidatorDevice.OfflinePollsCount = 10;
-			switch (MDB_BUFFER[0].data)
+			switch (MDB_BUFFER[0])
 			{
 				case 0x00:
 				EXT_UART_OK();
@@ -579,18 +579,18 @@ void BillValidatorPayoutStatus()
 		}
 		if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 		{
-			if (!MDB_BUFFER[0].mode)
+			if (MDB_RESPONSE_TYPE == MDB_RESP_DATA)
 			{
 				MDB_ACK();
 				BillValidatorDevice.OfflinePollsCount = 10;
 				//uint8_t * buff[6];
-				for (int i = 0; i < MDB_BUFFER_COUNT - 1; i++)
+				for (int i = 0; i < MDB_BUFFER_COUNT; i++)
 				{
-					if (MDB_BUFFER[i].data > 0)
+					if (MDB_BUFFER[i] > 0)
 					{
 						uint8_t tmpstr[64];
-						uint16_t billtypecount = MDB_BUFFER[i].data;
-						billtypecount = (billtypecount << 8) | MDB_BUFFER[i + 1].data;
+						uint16_t billtypecount = MDB_BUFFER[i];
+						billtypecount = (billtypecount << 8) | MDB_BUFFER[i + 1];
 						uint8_t billtype = (i - 2) / 2;
 						uint8_t buff[6 + BillValidatorSetupData.DecimalPlaces];
 						double billvalue = BillValidatorSetupData.BillScalingFactor * (BillValidatorSetupData.BillTypeCredit[billtype] / pow(10, BillValidatorSetupData.DecimalPlaces));
@@ -634,13 +634,13 @@ void BillValidatorPayoutValue()
 		}
 		if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 		{
-			if (!MDB_BUFFER[0].mode)
+			if (MDB_RESPONSE_TYPE == MDB_RESP_DATA)
 			{
 				MDB_ACK();
 				BillValidatorDevice.OfflinePollsCount = 10;
 				uint8_t tmpstr[64];
-				uint16_t billvalue = MDB_BUFFER[0].data;
-				billvalue = (billvalue << 8) | MDB_BUFFER[1].data;
+				uint16_t billvalue = MDB_BUFFER[0];
+				billvalue = (billvalue << 8) | MDB_BUFFER[1];
 				uint8_t buff[6 + BillValidatorSetupData.DecimalPlaces];
 				double billpvalue = BillValidatorSetupData.BillScalingFactor * (billvalue / pow(10, BillValidatorSetupData.DecimalPlaces));
 				dtostrf(billpvalue,0,BillValidatorSetupData.DecimalPlaces,(char*)buff);
@@ -649,7 +649,7 @@ void BillValidatorPayoutValue()
 				EXT_CRLF();
 			} else
 			{
-				if (MDB_BUFFER[0].data == 0x00)
+				if (MDB_BUFFER[0] == 0x00)
 				{
 					EXT_UART_Transmit_S("BV*DPVFIN");
 					EXT_CRLF();
@@ -689,7 +689,7 @@ void BillValidatorEscrow(uint8_t action)
 	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 	{
 		BillValidatorDevice.OfflinePollsCount = 10;
-		if (MDB_BUFFER[0].data == 0x00 && MDB_BUFFER[0].mode)
+		if (MDB_RESPONSE_TYPE == MDB_RESP_ACK)
 		{
 			EXT_UART_OK();
 		} else
@@ -717,7 +717,7 @@ void BillValidatorCancelPayout()
 	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 	{
 		BillValidatorDevice.OfflinePollsCount = 10;
-		if (MDB_BUFFER[0].data == 0x00 && MDB_BUFFER[0].mode)
+		if (MDB_RESPONSE_TYPE == MDB_RESP_ACK)
 		{
 			EXT_UART_OK();
 		} else
@@ -740,27 +740,27 @@ void GetBillValidatorSetupData()
 	}
 	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 	{
-		if (MDB_BUFFER_COUNT > 1)
+		if (MDB_BUFFER_COUNT > 0)
 		{
 			MDB_ACK();
 			BillValidatorDevice.OfflinePollsCount = 10;
-			BillValidatorSetupData.BillValidatorFeatureLevel = MDB_BUFFER[0].data;
-			uint8_t cocd[2] = {MDB_BUFFER[1].data, MDB_BUFFER[2].data};
+			BillValidatorSetupData.BillValidatorFeatureLevel = MDB_BUFFER[0];
+			uint8_t cocd[2] = {MDB_BUFFER[1], MDB_BUFFER[2]};
 			BillValidatorSetupData.CountryOrCurrencyCode = BCDByteToInt(cocd,sizeof(cocd));
-			BillValidatorSetupData.BillScalingFactor = MDB_BUFFER[3].data;
-			BillValidatorSetupData.BillScalingFactor = (BillValidatorSetupData.BillScalingFactor << 8) | MDB_BUFFER[4].data;
-			BillValidatorSetupData.DecimalPlaces = MDB_BUFFER[5].data;
-			BillValidatorSetupData.StackerCapacity = (MDB_BUFFER[6].data << MDB_BUFFER[7].data) | MDB_BUFFER[7].data;
-			uint16_t tmpcr  = MDB_BUFFER[8].data;
-			tmpcr = (tmpcr << 8) | MDB_BUFFER[9].data;
+			BillValidatorSetupData.BillScalingFactor = MDB_BUFFER[3];
+			BillValidatorSetupData.BillScalingFactor = (BillValidatorSetupData.BillScalingFactor << 8) | MDB_BUFFER[4];
+			BillValidatorSetupData.DecimalPlaces = MDB_BUFFER[5];
+			BillValidatorSetupData.StackerCapacity = (MDB_BUFFER[6] << MDB_BUFFER[7]) | MDB_BUFFER[7];
+			uint16_t tmpcr  = MDB_BUFFER[8];
+			tmpcr = (tmpcr << 8) | MDB_BUFFER[9];
 			for (int i = 0; i < 16; i++)
 			{
 				BillValidatorSetupData.BillSecurityLevel[i] = ((tmpcr & (1 << i)) != 0);
 			}
-			BillValidatorSetupData.Escrow = (MDB_BUFFER[10].data == 0xff);
-			for (int i = 11; i < MDB_BUFFER_COUNT - 1; i++)
+			BillValidatorSetupData.Escrow = (MDB_BUFFER[10] == 0xff);
+			for (int i = 11; i < MDB_BUFFER_COUNT; i++)
 			{
-				BillValidatorSetupData.BillTypeCredit[i - 11] = MDB_BUFFER[i].data;
+				BillValidatorSetupData.BillTypeCredit[i - 11] = MDB_BUFFER[i];
 			}
 			uint8_t tmpstr[64];
 			uint8_t mbvbuff[6 + BillValidatorSetupData.DecimalPlaces];
@@ -785,8 +785,8 @@ void GetBillValidatorSetupData()
 				}
 			}
 			} else {
-			if (MDB_BUFFER[0].data == 0x00){
-				
+			if (MDB_BUFFER[0] == 0x00){
+
 			}
 		}
 		} else {
@@ -816,7 +816,7 @@ void BillValidatorSetSecurityLevels()
 	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 	{
 		BillValidatorDevice.OfflinePollsCount = 10;
-		if (MDB_BUFFER[0].data == 0x00 && MDB_BUFFER[0].mode)
+		if (MDB_RESPONSE_TYPE == MDB_RESP_ACK)
 		{
 			EXT_UART_OK();
 		} else
@@ -839,13 +839,13 @@ void GetBillValidatorStackerStatus()
 	}
 	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 	{
-		if (MDB_BUFFER_COUNT == 3)
+		if (MDB_BUFFER_COUNT == 2)
 		{
 			MDB_ACK();
 			BillValidatorDevice.OfflinePollsCount = 10;
 			uint8_t tmpstr[32];
-			uint8_t full = ((MDB_BUFFER[0].data & 0x80) == 1);
-			uint16_t billnumber = ((MDB_BUFFER[0].data & 0x7F) << 8) | MDB_BUFFER[1].data;
+			uint8_t full = ((MDB_BUFFER[0] & 0x80) == 1);
+			uint16_t billnumber = ((MDB_BUFFER[0] & 0x7F) << 8) | MDB_BUFFER[1];
 			XXXX_sprintf_FSTR((char*)tmpstr,"BV*STACKER*%d*%d", billnumber, full);
 			EXT_UART_Transmit_S((char*)tmpstr);
 			EXT_CRLF();
@@ -854,7 +854,7 @@ void GetBillValidatorStackerStatus()
 				BillValidatorDisableAcceptBills();
 			}
 			} else {
-			if (MDB_BUFFER[0].data == 0x00){
+			if (MDB_BUFFER[0] == 0x00){
 				EXT_UART_Transmit_S("BV*STACKER*NAK");
 				EXT_CRLF();
 			}
@@ -900,7 +900,7 @@ void BillValidatorEnableAcceptBills()
 	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 	{
 		BillValidatorDevice.OfflinePollsCount = 10;
-		if (MDB_BUFFER_COUNT == 1 && MDB_BUFFER[0].data == 0x00)
+		if (MDB_RESPONSE_TYPE == MDB_RESP_ACK)
 		{
 			EXT_UART_OK();
 			if (BillValidatorOptions.EnableBillRecycling && BillValidatorIDData.BillRecyclingSupported) BillValidatorRecyclerEnable();
@@ -928,7 +928,7 @@ void BillValidatorDisableAcceptBills()
 	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 	{
 		BillValidatorDevice.OfflinePollsCount = 10;
-		if (MDB_BUFFER_COUNT == 1 && MDB_BUFFER[0].data == 0x00)
+		if (MDB_RESPONSE_TYPE == MDB_RESP_ACK)
 		{
 			EXT_UART_OK();
 			if (BillValidatorOptions.EnableBillRecycling && BillValidatorIDData.BillRecyclingSupported) BillValidatorRecyclerDisable();

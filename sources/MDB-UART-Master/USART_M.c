@@ -21,7 +21,8 @@
 #include "MDB_M.h"
 
 
-MDB_Byte MDB_BUFFER[37];
+uint8_t MDB_BUFFER[37];
+volatile uint8_t MDB_RESPONSE_TYPE;
 uint8_t MDB_UART_BUFFER[MDB_UART_BUFFER_MAX];
 volatile uint8_t MDB_UART_BufferHead = 0;
 volatile uint8_t MDB_UART_BufferTail = 0;
@@ -171,27 +172,6 @@ void EXT_UART_Transmit_HEXDUMP(const char *prefix, void *_p, size_t size) {
 	EXT_CRLF();
 }
 
-void EXT_UART_Transmit_HEXDUMP_MDBBYTE(const char *prefix, MDB_Byte mdbdata[], size_t mdbdata_count) {
-		
-	EXT_UART_Transmit_S("DIAG:");
-	EXT_UART_Transmit_S(prefix);
-	EXT_UART_Transmit_S(":");
-	
-	char buf[3];
-	const char hexasci[] = "0123456789abcdef";
-
-	for(size_t t = 0; t < mdbdata_count; t++) {
-		
-		buf[0] = hexasci[((mdbdata[t].data & 0xf0) >> 4)];
-		buf[1] = hexasci[((mdbdata[t].data & 0x0f) >> 0)];
-		buf[2] = '\0';
-		EXT_UART_Transmit_S(buf);
-	}
-	
-	EXT_CRLF();
-}
-
-
 
 /* Send CRLF on EXT */
 void EXT_CRLF(void)
@@ -300,12 +280,12 @@ int MDB_Receive(void)
     return ret;
 }
 
-/* Fill an MDB_Byte structure from one received 9-bit word */
-void MDB_getByte(MDB_Byte *mdbb)
+/* Internal: fill a local MDB_Byte from one received 9-bit word */
+typedef struct { uint8_t data; uint8_t mode; } MDB_Byte_local;
+static void MDB_getByte(MDB_Byte_local *mdbb)
 {
     int b = MDB_Receive();
     if (b < 0) {
-        /* error */
         mdbb->data = 0;
         mdbb->mode = 0;
     } else {
@@ -314,56 +294,44 @@ void MDB_getByte(MDB_Byte *mdbb)
     }
 }
 
-/* Simple checksum validator (last byte equals sum low 8 bits) */
-uint8_t MDB_ChecksumValidate() {
-	int sum = 0;
-	for (int i=0; i < (MDB_BUFFER_COUNT-1); i++)
-	sum += MDB_BUFFER[i].data;
-	
-	if (MDB_BUFFER[MDB_BUFFER_COUNT-1].data == (sum & 0xFF)){
-		return 1;
-	}
-	else{
-		return 0;
-	}
-}
-
-
 void MDB_read(void)
 {
     if (MDB_BUFFER_COUNT >= MDB_BUFFER_MAX) {
-        /* overflow protection */
         MDBReceiveComplete = 1;
         MDBReceiveErrorFlag = 3;
         return;
     }
 
-    MDB_getByte(&MDB_BUFFER[MDB_BUFFER_COUNT]);
-	MDB_BUFFER_COUNT++;
+    MDB_Byte_local b;
+    MDB_getByte(&b);
 
-    /* safety cap (original used 37) */
-    if (MDB_BUFFER_COUNT >= MDB_BUFFER_MAX) {
-        MDBReceiveComplete = 1;
-        MDBReceiveErrorFlag = 4;
-        return;
+    if (MDBReceiveErrorFlag) {
+        return; /* timeout/framing error already flagged by MDB_Receive */
     }
 
-    /* If last received had mode==1 and checksum validates -> frame complete */
-    if ((MDB_BUFFER[MDB_BUFFER_COUNT - 1].mode == 1))
-    {
-		if (MDB_BUFFER_COUNT >= 2) {
-			if (MDB_ChecksumValidate())
-			{
-				MDBReceiveComplete = 1;
-			}
-			else
-			{
-				/* keep reading until complete or overflow */
-			}
-		} else {
-			// WM: just one byte, but with mode = 1
-			MDBReceiveComplete = 1;
-		}
+    if (b.mode == 1) {
+        /* End-of-frame byte received */
+        if (MDB_BUFFER_COUNT == 0) {
+            /* Single-byte control response */
+            MDB_RESPONSE_TYPE = (b.data == 0x00) ? MDB_RESP_ACK : MDB_RESP_NAK;
+        } else {
+            /* Checksum byte — validate against stored data bytes */
+            uint8_t sum = 0;
+            for (uint16_t i = 0; i < MDB_BUFFER_COUNT; i++) sum += MDB_BUFFER[i];
+            if ((sum & 0xFF) == b.data) {
+                MDB_RESPONSE_TYPE = MDB_RESP_DATA;
+            } else {
+                MDBReceiveErrorFlag = 5; /* checksum mismatch */
+            }
+        }
+        MDBReceiveComplete = 1;
+    } else {
+        /* Regular data byte */
+        MDB_BUFFER[MDB_BUFFER_COUNT++] = b.data;
+        if (MDB_BUFFER_COUNT >= MDB_BUFFER_MAX) {
+            MDBReceiveComplete = 1;
+            MDBReceiveErrorFlag = 4;
+        }
     }
 }
 
@@ -373,6 +341,7 @@ void MDB_Send(uint8_t data[], uint8_t len)
     MDBReceiveErrorFlag = 0;
     MDBReceiveComplete = 0;
     MDB_BUFFER_COUNT = 0;
+    MDB_RESPONSE_TYPE = MDB_RESP_DATA; /* default; overwritten by MDB_read() */
 
 	if (len > 4) {
 		EXT_UART_Transmit_HEXDUMP("MDBSEND", data, len);

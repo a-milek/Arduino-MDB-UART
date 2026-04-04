@@ -9,17 +9,18 @@
 #ifndef MDB_M_H_
 #define MDB_M_H_
 
-typedef struct {
-	uint8_t data;
-	uint8_t mode;
-} MDB_Byte;
+/* MDB response type — replaces all .mode field checks in caller code */
+#define MDB_RESP_DATA  0   /* multi-byte data frame (checksum validated and stripped) */
+#define MDB_RESP_ACK   1   /* single byte 0x00 with mode=1 */
+#define MDB_RESP_NAK   2   /* single byte 0xFF with mode=1 */
 
-extern MDB_Byte MDB_BUFFER[37];
-extern volatile uint16_t MDB_BUFFER_COUNT;
+extern uint8_t           MDB_BUFFER[37];    /* payload bytes only — no checksum, no mode */
+extern volatile uint16_t MDB_BUFFER_COUNT;  /* number of payload bytes (checksum excluded) */
+extern volatile uint8_t  MDB_RESPONSE_TYPE; /* MDB_RESP_DATA / ACK / NAK */
 extern volatile uint8_t MDBReceiveComplete;
 extern volatile uint8_t MDBReceiveErrorFlag;
 #ifndef MDB_BUFFER_MAX
-#define MDB_BUFFER_MAX 37   // or the maximum buffer size you want
+#define MDB_BUFFER_MAX 37
 #endif
 
 

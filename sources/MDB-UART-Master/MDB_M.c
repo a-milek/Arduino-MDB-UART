@@ -28,13 +28,12 @@ void MDBDebug()
 	unsigned char buff[32];
 	XXXX_sprintf_FSTR((char*)buff, "Bytes count: %d, content: ", MDB_BUFFER_COUNT);
 	EXT_UART_Transmit_S((char*)buff);
-	for (int a = 0; a < MDB_BUFFER_COUNT - 1; a++)
+	for (int a = 0; a < MDB_BUFFER_COUNT; a++)
 	{
-		XXXX_sprintf_FSTR((char*)buff, "%02x ", MDB_BUFFER[a].data);
+		XXXX_sprintf_FSTR((char*)buff, "%02x ", MDB_BUFFER[a]);
 		EXT_UART_Transmit_S((char*)buff);
 	}
-	XXXX_sprintf_FSTR((char*)buff, "%02x\r\n", MDB_BUFFER[MDB_BUFFER_COUNT - 1].data);
-	EXT_UART_Transmit_S((char*)buff);
+	EXT_CRLF();
 }
 
 void ProcessMDBResponse(uint8_t addr){
@@ -46,7 +45,7 @@ void ProcessMDBResponse(uint8_t addr){
 	}
 	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 	{
-		if (MDB_BUFFER_COUNT > 1){
+		if (MDB_RESPONSE_TYPE == MDB_RESP_DATA){
 			MDB_ACK();
 			switch (addr)
 			{
@@ -63,46 +62,40 @@ void ProcessMDBResponse(uint8_t addr){
 				CoinHopperPollResponse(1);
 				break;
 			}
-			} else{
-			if (MDB_BUFFER_COUNT == 1){
-				//just *ACK* received from peripheral device, no confirmation needed
-				//MDBDebug();
-				if (MDB_BUFFER[0].data == 0x00 && MDB_BUFFER[0].mode)
+		} else if (MDB_RESPONSE_TYPE == MDB_RESP_ACK) {
+			/* ACK received from peripheral — no confirmation needed */
+			switch (addr)
+			{
+				case 0x08:
+				if (CoinChangerDevice.Status == 2)
 				{
-					switch (addr)
-					{
-						case 0x08:
-						if (CoinChangerDevice.Status == 2)
-						{
-							CoinChangerDevice.Status = 1;
-							EXT_UART_Transmit_S("CC*DISP*FIN\r\n");
-							GetCoinChangerTubeStatus();
-						}
-						break;
-						case 0x58:
-						if (CoinHopperDevice[0].Status == 2)
-						{
-							CoinHopperDevice[0].Status = 1;
-							EXT_UART_Transmit_S("CH1*DISP*FIN\r\n");
-							GetCoinHopperDispenserStatus(0);
-						}
-						break;
-						case 0x70:
-						if (CoinHopperDevice[1].Status == 2)
-						{
-							CoinHopperDevice[1].Status = 1;
-							EXT_UART_Transmit_S("CH2*DISP*FIN\r\n");
-							GetCoinHopperDispenserStatus(1);
-						}
-						break;
-						case 0x30:
-						if (BillValidatorDevice.Status == 2)
-						{
-							BillValidatorDevice.Status = 1;
-						}
-						break;
-					}
+					CoinChangerDevice.Status = 1;
+					EXT_UART_Transmit_S("CC*DISP*FIN\r\n");
+					GetCoinChangerTubeStatus();
 				}
+				break;
+				case 0x58:
+				if (CoinHopperDevice[0].Status == 2)
+				{
+					CoinHopperDevice[0].Status = 1;
+					EXT_UART_Transmit_S("CH1*DISP*FIN\r\n");
+					GetCoinHopperDispenserStatus(0);
+				}
+				break;
+				case 0x70:
+				if (CoinHopperDevice[1].Status == 2)
+				{
+					CoinHopperDevice[1].Status = 1;
+					EXT_UART_Transmit_S("CH2*DISP*FIN\r\n");
+					GetCoinHopperDispenserStatus(1);
+				}
+				break;
+				case 0x30:
+				if (BillValidatorDevice.Status == 2)
+				{
+					BillValidatorDevice.Status = 1;
+				}
+				break;
 			}
 		}
 	} else
@@ -154,12 +147,10 @@ void DebugMDBMessage()
 	uint8_t buff[20];
 	XXXX_sprintf_FSTR((char*)buff, "Bytes: %d\r\nHEX:", MDB_BUFFER_COUNT);
 	EXT_UART_Transmit_S((char*)buff);
-	for (int a = 0; a < MDB_BUFFER_COUNT - 1; a++){
-	XXXX_sprintf_FSTR((char*)buff, " %02x", MDB_BUFFER[a].data);
+	for (int a = 0; a < MDB_BUFFER_COUNT; a++){
+	XXXX_sprintf_FSTR((char*)buff, " %02x", MDB_BUFFER[a]);
 	EXT_UART_Transmit_S((char*)buff);
 	}
-	XXXX_sprintf_FSTR((char*)buff, " %02x", MDB_BUFFER[MDB_BUFFER_COUNT - 1].data);
-	EXT_UART_Transmit_S((char*)buff);
 	EXT_CRLF();
 }
 

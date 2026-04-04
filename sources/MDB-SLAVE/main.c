@@ -75,6 +75,7 @@ uint16_t BCDByteToInt(uint8_t BCDBytes[])
 	return res;
 }
 
+// MDB-SLAVE
 int main(void)
 {
 	InitAll();
