@@ -29,7 +29,7 @@ void MDB_read(void);
 void EXT_UART_Transmit_S(const char* string);
 void EXT_UART_Transmit_UN(const uint8_t data[], size_t size);
 void EXT_UART_Transmit_SN(const char* string, size_t maxlen);
-void EXT_UART_Transmit_HEXDUMP(const char *prefix, void *p, size_t size);
+void EXT_UART_Transmit_HEXDUMP(const char *prefix, const void *p, size_t size);
 int MDB_Receive(void);
 void delay_1ms(uint16_t ms);
 #define EXT_RXC_vect        USART0_RXC_vect

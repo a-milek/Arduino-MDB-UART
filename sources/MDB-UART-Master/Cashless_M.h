@@ -51,7 +51,7 @@ void ProcessReaderVendApproved(uint8_t index, const uint8_t vendappdata[], size_
 void ProcessReaderSessionBegin(uint8_t index, const uint8_t sbdata[], size_t sbsize);
 void ProcessReaderError(uint8_t index, const uint8_t errdata[]);
 void ReaderReset(uint8_t index);
-void ProcessReaderRevalueLimit(uint8_t index, const uint8_t rlimdata[]);
+void ProcessReaderRevalueLimit(uint8_t index, const uint8_t rlimdata[], size_t rlimdata_size);
 void ReaderWriteDateTime(uint8_t index, uint8_t BCDDateTimeData[10]);
 void ReaderRevalueLimitRequest(uint8_t index);
 void ReaderRevalueRequestExp(uint8_t index, double amount);

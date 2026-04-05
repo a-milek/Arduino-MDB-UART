@@ -287,7 +287,7 @@ void CoinHopperEnableManualDispenseCoinType(uint8_t index, uint8_t CoinType, uin
 
 void CoinHopperDispenseCoins(uint8_t index, uint8_t CoinType, uint16_t CoinsCount)
 {
-	char tmpstr[16];
+	char tmpstr[sizeof("CHxxx*DISPENSE*")];
 	uint8_t cmd[6];
 	if (!index)
 	{
@@ -336,7 +336,7 @@ void CoinHopperDispenseCoins(uint8_t index, uint8_t CoinType, uint16_t CoinsCoun
 
 void CoinHopperDispenseValue(uint8_t index, uint16_t PayoutValue)
 {
-	char tmpstr[16];
+	char tmpstr[sizeof("CHxxx*SUMPAYOUT*")];
 	uint8_t cmd[5];
 	if (!index)
 	{

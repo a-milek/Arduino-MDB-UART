@@ -669,16 +669,16 @@ void ReaderReset(uint8_t index)
 	ReaderProcessResponse(index, "RESET", NULL);
 }
 
-void ProcessReaderRevalueLimit(uint8_t index, const uint8_t rlimdata[])
+void ProcessReaderRevalueLimit(uint8_t index, const uint8_t rlimdata[], size_t rlimdata_size)
 {
 	uint32_t availablefundsdata;
 	uint8_t tmpstr[32];
 	uint8_t buff[10];
-	if (sizeof(rlimdata) == 10)
+	if (rlimdata_size == 5)
 	{
 		availablefundsdata = (uint32_t)rlimdata[1] << 24 | ((uint32_t)rlimdata[2] << 16) | ((uint32_t)rlimdata[3] << 8) | ((uint32_t)rlimdata[4]);
 	}
-	else if (sizeof(rlimdata) == 6)
+	else if (rlimdata_size == 3)
 	{
 		availablefundsdata = (uint32_t)rlimdata[1] << 8 | (uint32_t)rlimdata[2];
 	}
@@ -707,8 +707,8 @@ void ReaderResponse(uint8_t index)
 	{
 		if (1) {
 			// WM: b'DIAG:RPR:0307d0da\r\n' - checksum hex(0x03 + 0x07 + 0xd0) = 0xda
-			XXXX_sprintf_FSTR(tmpstr,"WMDIAG:CD%d*RR:i:%d/%d", index + 1, i, MDB_BUFFER_COUNT);
-			EXT_UART_Transmit_S(tmpstr);
+			XXXX_sprintf_FSTR((char*)tmpstr,"WMDIAG:CD%d*RR:i:%d/%d", index + 1, i, MDB_BUFFER_COUNT);
+			EXT_UART_Transmit_S((char*)tmpstr);
 			EXT_CRLF();
 		}
 		switch (TMP[i])
@@ -875,14 +875,14 @@ void ReaderResponse(uint8_t index)
 				{
 					uint8_t rlimdata[5];
 					memcpy(rlimdata, &TMP[i], 5);
-					ProcessReaderRevalueLimit(index,rlimdata);
+					ProcessReaderRevalueLimit(index,rlimdata, 5);
 					i += 4;
-					
+
 				} else
 				{
 					uint8_t rlimdata[3];
 					memcpy(rlimdata, &TMP[i], 3);
-					ProcessReaderRevalueLimit(index,rlimdata);
+					ProcessReaderRevalueLimit(index,rlimdata, 3);
 					i += 2;
 				}
 			}

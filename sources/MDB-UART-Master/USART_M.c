@@ -150,8 +150,8 @@ void EXT_UART_Transmit_S(const char* string) {
 	EXT_UART_Transmit_SN(string, SIZE_MAX);
 }
 
-void EXT_UART_Transmit_HEXDUMP(const char *prefix, void *_p, size_t size) {
-	uint8_t *p = (uint8_t*)_p;
+void EXT_UART_Transmit_HEXDUMP(const char *prefix, const void *_p, size_t size) {
+	const uint8_t *p = (const uint8_t*)_p;
 	
 	
 	EXT_UART_Transmit_S("DIAG:");
