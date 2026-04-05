@@ -185,48 +185,48 @@ void CoinHopperPollResponse(uint8_t index)
 		}
 		if ((TMP[i] & 0xf0) == 0)
 		{
-			uint8_t statusbuff[32];
+			char statusbuff[32];
 			switch (TMP[i] & 0x0f)
 			{
 				case 1:
-				sprintf((char*)statusbuff,"%s", "ESCROWREQ");
+				sprintf(statusbuff,"%s", "ESCROWREQ");
 				break;
 				case 2:
-				sprintf((char*)statusbuff,"%s", "PAYOUTBUSY");
+				sprintf(statusbuff,"%s", "PAYOUTBUSY");
 				break;
 				case 3:
-				sprintf((char*)statusbuff,"%s", "NA");
+				sprintf(statusbuff,"%s", "NA");
 				break;
 				case 4:
-				sprintf((char*)statusbuff,"%s", "BADSENSOR");
+				sprintf(statusbuff,"%s", "BADSENSOR");
 				break;
 				case 5:
-				sprintf((char*)statusbuff,"%s", "NOTUSED");
+				sprintf(statusbuff,"%s", "NOTUSED");
 				break;
 				case 6:
-				sprintf((char*)statusbuff,"%s", "NOSTART");
+				sprintf(statusbuff,"%s", "NOSTART");
 				break;
 				case 7:
-				sprintf((char*)statusbuff,"%s", "DISPJAM");
+				sprintf(statusbuff,"%s", "DISPJAM");
 				break;
 				case 8:
-				sprintf((char*)statusbuff,"%s", "ROMERROR");
+				sprintf(statusbuff,"%s", "ROMERROR");
 				break;
 				case 9:
-				sprintf((char*)statusbuff,"%s", "NA");
+				sprintf(statusbuff,"%s", "NA");
 				break;
 				case 10:
-				sprintf((char*)statusbuff,"%s", "NA");
+				sprintf(statusbuff,"%s", "NA");
 				break;
 				case 11:
-				sprintf((char*)statusbuff,"%s", "JUSTRESET");
+				sprintf(statusbuff,"%s", "JUSTRESET");
 				//The following initialization sequence is recommended for all new VMCs
 				//designed after July, 2000. It should be used after �power up�, after issuing
 				//the RESET command, after issuing the Bus Reset (pulling the transmit line
 				//�active� for a minimum of 100 mS), or anytime a POLL command results in a
 				//�JUST RESET� response (i.e., peripheral self resets).
 				CoinHopperDevice[index].Status = 1;
-				XXXX_sprintf_FSTR((char*)tmpstr,"CH%d*STATUS*%s", index + 1, &statusbuff);
+				XXXX_sprintf_FSTR((char*)tmpstr,"CH%d*STATUS*%s", index + 1, statusbuff);
 				EXT_UART_Transmit_S((char*)tmpstr);
 				EXT_CRLF();
 				GetCoinHopperSetupData(index);
@@ -234,20 +234,20 @@ void CoinHopperPollResponse(uint8_t index)
 				GetCoinHopperDispenserStatus(index);
 				return;
 				case 12:
-				sprintf((char*)statusbuff,"%s", "NA");
+				sprintf(statusbuff,"%s", "NA");
 				break;
 				case 13:
-				sprintf((char*)statusbuff,"%s", "NA");
+				sprintf(statusbuff,"%s", "NA");
 				break;
 				case 14:
-				sprintf((char*)statusbuff,"%s", "NA");
+				sprintf(statusbuff,"%s", "NA");
 				break;
 				case 15:
-				sprintf((char*)statusbuff,"%s", "FILLEDKEY");
+				sprintf(statusbuff,"%s", "FILLEDKEY");
 				GetCoinHopperDispenserStatus(index);
 				break;
 			}
-			XXXX_sprintf_FSTR((char*)tmpstr,"CH%d*STATUS*%s", index + 1, &statusbuff);
+			XXXX_sprintf_FSTR((char*)tmpstr,"CH%d*STATUS*%s", index + 1, statusbuff);
 			EXT_UART_Transmit_S((char*)tmpstr);
 			EXT_CRLF();
 		}
