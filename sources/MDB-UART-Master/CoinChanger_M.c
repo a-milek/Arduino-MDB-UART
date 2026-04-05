@@ -586,14 +586,17 @@ void GetCoinChangerIdentification()
 			EXT_UART_Transmit(CoinChangerIDData.ModelRevision);
 			uint8_t srd[2] = {MDB_BUFFER[27], MDB_BUFFER[28]};
 			CoinChangerIDData.SoftwareVersion = BCDByteToInt(srd, sizeof(srd));
-			uint32_t flags  = MDB_BUFFER[29];
-			flags = (flags << 8) | MDB_BUFFER[30];
-			flags = (flags << 8) | MDB_BUFFER[31];
-			flags = (flags << 8) | MDB_BUFFER[32];
-			CoinChangerIDData.AlternativePayout = ((flags & (1 << 0)) != 0);
-			CoinChangerIDData.ExtendedDiagnostic = ((flags & (1 << 1)) != 0);
-			CoinChangerIDData.ControlledManualFillAndPayout = ((flags & (1 << 2)) != 0);
-			CoinChangerIDData.FTLSupported = ((flags & (1 << 3)) != 0);
+			if (MDB_BUFFER_COUNT >= 33)
+			{
+				uint32_t flags  = MDB_BUFFER[29];
+				flags = (flags << 8) | MDB_BUFFER[30];
+				flags = (flags << 8) | MDB_BUFFER[31];
+				flags = (flags << 8) | MDB_BUFFER[32];
+				CoinChangerIDData.AlternativePayout = ((flags & (1 << 0)) != 0);
+				CoinChangerIDData.ExtendedDiagnostic = ((flags & (1 << 1)) != 0);
+				CoinChangerIDData.ControlledManualFillAndPayout = ((flags & (1 << 2)) != 0);
+				CoinChangerIDData.FTLSupported = ((flags & (1 << 3)) != 0);
+			}
 			XXXX_sprintf_FSTR((char*)tmpstr,"*%d*%d*%d*%d*%d", CoinChangerIDData.SoftwareVersion, CoinChangerIDData.AlternativePayout, CoinChangerIDData.ExtendedDiagnostic, CoinChangerIDData.ControlledManualFillAndPayout, CoinChangerIDData.FTLSupported);
 			EXT_UART_Transmit_S((char*)tmpstr);
 			EXT_CRLF();

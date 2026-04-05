@@ -265,7 +265,7 @@ void GetBillValidatorIdentification()
 			EXT_UART_Transmit_UN(BillValidatorIDData.ModelRevision, sizeof(BillValidatorIDData.ModelRevision));
 			uint8_t srd[2] = {MDB_BUFFER[27], MDB_BUFFER[28]};
 			BillValidatorIDData.SoftwareVersion = BCDByteToInt(srd, sizeof(srd));
-			if (BillValidatorSetupData.BillValidatorFeatureLevel == 2 && MDB_BUFFER_COUNT == 32)
+			if (BillValidatorSetupData.BillValidatorFeatureLevel == 2 && MDB_BUFFER_COUNT == 33)
 			{
 				uint16_t flags  = MDB_BUFFER[29];
 				flags = (flags << 8) | MDB_BUFFER[30];

@@ -541,11 +541,14 @@ void GetCoinHopperIdentification(uint8_t index)
 				EXT_UART_Transmit(CoinHopperIDData[index].ModelRevision);
 				uint8_t srd[2] = {MDB_BUFFER[27], MDB_BUFFER[28]};
 				CoinHopperIDData[index].SoftwareVersion = BCDByteToInt(srd, sizeof(srd));
-				uint16_t flags  = MDB_BUFFER[29];
-				flags = (flags << 8) | MDB_BUFFER[30];
-				flags = (flags << 8) | MDB_BUFFER[31];
-				flags = (flags << 8) | MDB_BUFFER[32];
-				CoinHopperIDData[index].FTLSupported = ((flags & 0x01) == 1);
+				if (MDB_BUFFER_COUNT >= 33)
+				{
+					uint16_t flags  = MDB_BUFFER[29];
+					flags = (flags << 8) | MDB_BUFFER[30];
+					flags = (flags << 8) | MDB_BUFFER[31];
+					flags = (flags << 8) | MDB_BUFFER[32];
+					CoinHopperIDData[index].FTLSupported = ((flags & 0x01) == 1);
+				}
 				XXXX_sprintf_FSTR((char*)tmpstr,"*%d*%d", CoinHopperIDData[index].SoftwareVersion, CoinHopperIDData[index].FTLSupported);
 				EXT_UART_Transmit_S((char*)tmpstr);
 				EXT_CRLF();
