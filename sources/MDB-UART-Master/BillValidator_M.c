@@ -31,7 +31,7 @@ void BillValidatorPollResponse()
 	BillValidatorDevice.OfflinePollsCount = 10;
 	uint8_t tmpstr[64];
 	uint8_t bsbuff[25];
-	uint8_t statusbuff[32];
+	char statusbuff[32];
 	uint16_t status;
 	uint8_t billtype;
 	  uint16_t tmplen = (MDB_BUFFER_COUNT < MAX_MDB_BUFFER) ? MDB_BUFFER_COUNT : MAX_MDB_BUFFER;
@@ -102,7 +102,7 @@ void BillValidatorPollResponse()
 					break;
 				}
 				EXT_UART_Transmit_S("BV*STATUS*");
-				EXT_UART_Transmit(statusbuff);
+				EXT_UART_Transmit_S(statusbuff);
 				EXT_CRLF();
 				break;
 				case 1://Bill Recycler status
@@ -146,7 +146,7 @@ void BillValidatorPollResponse()
 					break;
 				}
 				EXT_UART_Transmit_S("BV*DISPSTATUS*");
-				EXT_UART_Transmit(statusbuff);
+				EXT_UART_Transmit_S(statusbuff);
 				EXT_CRLF();
 				break;
 				case 2://Number of attempts to input a bill while validator is disabled
