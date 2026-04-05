@@ -378,8 +378,21 @@ void CoinChangerDispense(uint8_t DispenseParams)
 			CoinChangerDevice.OfflinePollsCount = 5;
 			return;
 		}
+		else if (MDB_RESPONSE_TYPE == MDB_RESP_NAK)
+		{
+			EXT_UART_NAK();
+		}
+		else if (MDB_RESPONSE_TYPE == MDB_RESP_DATA)
+		{
+			EXT_UART_UNK_DATA();
+		}
+		else
+		{
+			EXT_UART_UNK();
+		}
+	} else {
+		EXT_UART_FAIL();
 	}
-	EXT_UART_FAIL();
 	if (CoinChangerDevice.OfflinePollsCount > 0) CoinChangerDevice.OfflinePollsCount--;
 }
 

@@ -199,9 +199,11 @@ void EXT_UART_Setup(void)
 }
 
 /* convenience helpers */
-void EXT_UART_OK(void)   { EXT_UART_Transmit_S("OK\r\n"); }
-void EXT_UART_NAK(void)  { EXT_UART_Transmit_S("NAK\r\n"); }
-void EXT_UART_FAIL(void) { EXT_UART_Transmit_S("FAIL\r\n"); }
+void EXT_UART_OK(void)       { EXT_UART_Transmit_S("OK\r\n"); }
+void EXT_UART_NAK(void)      { EXT_UART_Transmit_S("NAK\r\n"); }
+void EXT_UART_FAIL(void)     { EXT_UART_Transmit_S("FAIL\r\n"); }
+void EXT_UART_UNK(void)      { EXT_UART_Transmit_S("UNK\r\n"); }
+void EXT_UART_UNK_DATA(void) { EXT_UART_Transmit_S("UNK*DATA\r\n"); }
 
 /* ----------------- EXT UART RX ISR (message assembly) -----------------
    The ISR name uses EXT_RXC_vect macro from mdb_usart.h (maps to correct vector)

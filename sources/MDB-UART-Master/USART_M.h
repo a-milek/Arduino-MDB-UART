@@ -21,6 +21,8 @@ void EXT_CRLF(void);
 void EXT_UART_FAIL(void);
 void EXT_UART_OK(void);
 void EXT_UART_NAK(void);
+void EXT_UART_UNK(void);
+void EXT_UART_UNK_DATA(void);
 void MDB_ACK(void);
 void MDB_Send(uint8_t data[], uint8_t len);
 void MDB_read(void);

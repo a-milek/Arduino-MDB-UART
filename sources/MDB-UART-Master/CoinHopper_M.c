@@ -305,32 +305,33 @@ void CoinHopperDispenseCoins(uint8_t index, uint8_t CoinType, uint16_t CoinsCoun
 	while (!MDBReceiveComplete){
 		MDB_read();
 	}
+	XXXX_sprintf_FSTR((char*)tmpstr,"CH%d*DISPENSE*", index + 1);
+	EXT_UART_Transmit_S(tmpstr);
 	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 	{
-		CHLED_ON(index);
-		XXXX_sprintf_FSTR((char*)tmpstr,"CH%d*DISPENSE*", index + 1);
-		EXT_UART_Transmit_S(tmpstr);
-		switch (MDB_BUFFER[0])
+		if (MDB_RESPONSE_TYPE == MDB_RESP_ACK)
 		{
-			case 0x00:
+			CHLED_ON(index);
 			CoinHopperDevice[index].Status = 2;//awaiting dispense
 			EXT_UART_OK();
-			break;
-			case 0xff:
-			EXT_UART_NAK();
-			break;
-			default:
-			EXT_UART_Transmit_S("UNK");
-			EXT_CRLF();
-			break;
+			return;
 		}
-	} else
-	{
-		XXXX_sprintf_FSTR((char*)tmpstr,"CH%d*DISPENSE*FAIL", index + 1);
-		EXT_UART_Transmit_S(tmpstr);
-		EXT_CRLF();
-		CHLED_OFF(index);
+		else if (MDB_RESPONSE_TYPE == MDB_RESP_NAK)
+		{
+			EXT_UART_NAK();
+		}
+		else if (MDB_RESPONSE_TYPE == MDB_RESP_DATA)
+		{
+			EXT_UART_UNK_DATA();
+		}
+		else
+		{
+			EXT_UART_UNK();
+		}
+	} else {
+		EXT_UART_FAIL();
 	}
+	CHLED_OFF(index);
 }
 
 void CoinHopperDispenseValue(uint8_t index, uint16_t PayoutValue)
@@ -352,32 +353,33 @@ void CoinHopperDispenseValue(uint8_t index, uint16_t PayoutValue)
 	while (!MDBReceiveComplete){
 		MDB_read();
 	}
+	XXXX_sprintf_FSTR((char*)tmpstr,"CH%d*SUMPAYOUT*", index + 1);
+	EXT_UART_Transmit_S(tmpstr);
 	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 	{
-		CHLED_ON(index);
-		XXXX_sprintf_FSTR((char*)tmpstr,"CH%d*SUMPAYOUT*", index + 1);
-		EXT_UART_Transmit_S(tmpstr);
-		switch (MDB_BUFFER[0])
+		if (MDB_RESPONSE_TYPE == MDB_RESP_ACK)
 		{
-			case 0x00:
+			CHLED_ON(index);
 			CoinHopperDevice[index].Status = 3;//awaiting dispense
 			EXT_UART_OK();
-			break;
-			case 0xff:
-			EXT_UART_NAK();
-			break;
-			default:
-			EXT_UART_Transmit_S("UNK");
-			EXT_CRLF();
-			break;
+			return;
 		}
-	} else
-	{
-		XXXX_sprintf_FSTR((char*)tmpstr,"CH%d*SUMPAYOUT*FAIL", index + 1);
-		EXT_UART_Transmit_S(tmpstr);
-		EXT_CRLF();
-		CHLED_OFF(index);
+		else if (MDB_RESPONSE_TYPE == MDB_RESP_NAK)
+		{
+			EXT_UART_NAK();
+		}
+		else if (MDB_RESPONSE_TYPE == MDB_RESP_DATA)
+		{
+			EXT_UART_UNK_DATA();
+		}
+		else
+		{
+			EXT_UART_UNK();
+		}
+	} else {
+		EXT_UART_FAIL();
 	}
+	CHLED_OFF(index);
 }
 
 void CoinHopperPayoutStatus(uint8_t index)
