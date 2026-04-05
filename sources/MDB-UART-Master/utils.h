@@ -6,6 +6,8 @@
 
 uint16_t BCDByteToInt(uint8_t* BCDBytes, size_t BCDBytes_size);
 
+#define MAX2(a, b) ((a) > (b) ? (a) : (b))
+
 #define ZERO_OR_COMPILE_ERROR(cond) ((int) sizeof(char[1 - 2 * !(cond)]) - 1)
  
 #define IS_ARRAY(array) \

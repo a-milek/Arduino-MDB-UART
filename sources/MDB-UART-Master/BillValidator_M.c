@@ -160,7 +160,14 @@ void BillValidatorPollResponse()
 			case 1://Bills Accepted
 			{
 				uint16_t routedata = (((TMP[i]) & 0x70) >> 4);//bits 5-7 of byte 1
-				uint8_t route[8];
+				char route[MAX2(sizeof("STACKER"),
+			          MAX2(sizeof("ESCROW"),
+			          MAX2(sizeof("RETURN"),
+			          MAX2(sizeof("RECYCLER"),
+			          MAX2(sizeof("DISREJECT"),
+			          MAX2(sizeof("RECMANUAL"),
+			          MAX2(sizeof("DISPMANUAL"),
+			               sizeof("REC2CB"))))))))];
 				switch (routedata)
 				{
 					case 0:
