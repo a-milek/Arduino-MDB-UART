@@ -165,41 +165,41 @@ void CoinChangerPollResponse()
 		}
 		if ((TMP[i] >> 4) == 0)
 		{
-			uint8_t statusbuff[20];
+			char statusbuff[20];
 			switch (TMP[i] & 0x0f)
 			{
 				case 1:
-				sprintf((char*)statusbuff,"%s", "ESCROWREQ");
+				sprintf(statusbuff,"%s","ESCROWREQ");
 				break;
 				case 2: // 00000010)
-				sprintf((char*)statusbuff,"%s", "PAYOUTBUSY");
+				sprintf(statusbuff,"%s","PAYOUTBUSY");
 				break;
 				case 3: // (00000011)
-				sprintf((char*)statusbuff,"%s", "NOCREDIT");
+				sprintf(statusbuff,"%s","NOCREDIT");
 				break;
 				case 4: // (00000100)
-				sprintf((char*)statusbuff,"%s", "BADTUBESENSOR");
+				sprintf(statusbuff,"%s","BADTUBESENSOR");
 				break;
 				case 5:
-				sprintf((char*)statusbuff,"%s", "DOUBLECOIN");
+				sprintf(statusbuff,"%s","DOUBLECOIN");
 				break;
 				case 6: // (00000110)
-				sprintf((char*)statusbuff,"%s", "UNPLUGGED");
+				sprintf(statusbuff,"%s","UNPLUGGED");
 				break;
 				case 7:
-				sprintf((char*)statusbuff,"%s", "TUBEJAM");
+				sprintf(statusbuff,"%s","TUBEJAM");
 				break;
 				case 8:
-				sprintf((char*)statusbuff,"%s", "ROMERROR");
+				sprintf(statusbuff,"%s","ROMERROR");
 				break;
 				case 9:
-				sprintf((char*)statusbuff,"%s", "ROUTERROR");
+				sprintf(statusbuff,"%s","ROUTERROR");
 				break;
 				case 10: // (00001010)
-				sprintf((char*)statusbuff,"%s", "BUSY");
+				sprintf(statusbuff,"%s","BUSY");
 				break;
 				case 11: // (00001011)
-				sprintf((char*)statusbuff,"%s", "JUSTRESET");
+				sprintf(statusbuff,"%s","JUSTRESET");
 				//The following initialization sequence is recommended for all new VMCs
 				//designed after July, 2000. It should be used after �power up�, after issuing
 				//the RESET command, after issuing the Bus Reset (pulling the transmit line
@@ -207,7 +207,7 @@ void CoinChangerPollResponse()
 				//�JUST RESET� response (i.e., peripheral self resets).
 				CoinChangerDevice.Status = 1;
 				CoinChangerDevice.OfflinePollsCount = 5;
-				XXXX_sprintf_FSTR((char*)tmpstr,"CC*STATUS*%s\r\n", &statusbuff);
+				XXXX_sprintf_FSTR((char*)tmpstr,"CC*STATUS*%s\r\n", statusbuff);
 				EXT_UART_Transmit_S((char*)tmpstr);
 				GetCoinChangerSetupData();
 				if (CoinChangerSetupData.CoinChangerFeatureLevel >= 2)
@@ -220,13 +220,13 @@ void CoinChangerPollResponse()
 				GetCoinChangerTubeStatus();
 				return;
 				case 12: // (00001100)
-				sprintf((char*)statusbuff,"%s", "COINJAM");
+				sprintf(statusbuff,"%s","COINJAM");
 				break;
 				case 13: // (00001101)
-				sprintf((char*)statusbuff,"%s", "FISHING");
+				sprintf(statusbuff,"%s","FISHING");
 				break;
 			}
-			XXXX_sprintf_FSTR((char*)tmpstr,"CC*STATUS*%s", &statusbuff);
+			XXXX_sprintf_FSTR((char*)tmpstr,"CC*STATUS*%s", statusbuff);
 			EXT_UART_Transmit_S((char*)tmpstr);
 			EXT_CRLF();
 		}
@@ -250,23 +250,23 @@ void CoinChangerPollResponse()
 			uint8_t cvbuff[5 + CoinChangerSetupData.DecimalPlaces];
 			double coinvalue = (CoinChangerSetupData.CoinScalingFactor * CoinChangerSetupData.CoinTypeCredit[cointype]) / pow(10, CoinChangerSetupData.DecimalPlaces);
 			dtostrf(coinvalue,0,CoinChangerSetupData.DecimalPlaces,(char*)cvbuff);
-			uint8_t routbuff[10];
+			char routbuff[10];
 			switch (coinrouting)
 			{
 				case 0:
-				sprintf((char*)routbuff,"%s", "CASHBOX");
+				sprintf(routbuff,"%s", "CASHBOX");
 				break;
 				case 1:
-				sprintf((char*)routbuff,"%s", "TUBE");
+				sprintf(routbuff,"%s", "TUBE");
 				break;
 				case 2:
-				sprintf((char*)routbuff,"%s", "NA");
+				sprintf(routbuff,"%s", "NA");
 				break;
 				case 3:
-				sprintf((char*)routbuff,"%s", "REJECT");
+				sprintf(routbuff,"%s", "REJECT");
 				break;
 			}
-			XXXX_sprintf_FSTR((char*)tmpstr,"CC*DEPOSIT*%d*%s*%s*%d", cointype + 1, &cvbuff, &routbuff, coinsintube);
+			XXXX_sprintf_FSTR((char*)tmpstr,"CC*DEPOSIT*%d*%s*%s*%d", cointype + 1, cvbuff, routbuff, coinsintube);
 			EXT_UART_Transmit_S((char*)tmpstr);
 			EXT_CRLF();
 			i++;
