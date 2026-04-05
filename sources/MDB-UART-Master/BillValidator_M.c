@@ -101,9 +101,13 @@ void BillValidatorPollResponse()
 					sprintf(statusbuff,"%s", "FISHING");
 					break;
 				}
-				EXT_UART_Transmit_S("BV*STATUS*");
-				EXT_UART_Transmit_S(statusbuff);
-				EXT_CRLF();
+				if (status != BillValidatorDevice.LastPollStatus)
+				{
+					BillValidatorDevice.LastPollStatus = status;
+					EXT_UART_Transmit_S("BV*STATUS*");
+					EXT_UART_Transmit_S(statusbuff);
+					EXT_CRLF();
+				}
 				break;
 				case 1://Bill Recycler status
 				status = TMP[i] & 0x0F;

@@ -41,6 +41,7 @@ extern volatile uint8_t MDBReceiveErrorFlag;
 typedef struct {
 	uint8_t Status;
 	uint8_t OfflinePollsCount;
+	uint8_t LastPollStatus; // zero-initialized; MDB poll status codes start at 1, so first report always triggers
 } mdbdevice;
 
 void DebugMDBMessage(void);
