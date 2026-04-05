@@ -1,0 +1,10 @@
+CompileFlags:
+  Add:
+    - --target=avr
+    - -DF_CPU=3333333UL
+  Remove:
+    - -mmcu=*
+    - -funsigned-bitfields
+    - -funsigned-char
+    - -fpack-struct
+    - -Wl*

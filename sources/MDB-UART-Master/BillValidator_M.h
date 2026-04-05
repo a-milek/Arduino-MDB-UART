@@ -4,10 +4,10 @@
  * Created: 18.05.2019 10:05:57
  *  Author: root
  */ 
-#include "MDB_M.h"
-
 #ifndef BILLVALIDATOR_M_H_
 #define BILLVALIDATOR_M_H_
+
+#include "MDB_M.h"
 
 typedef struct {
 	uint8_t BillValidatorFeatureLevel;
@@ -30,9 +30,9 @@ typedef struct {
 	uint8_t ModelRevision[12];
 } baiddata;
 
-baiddata BillValidatorIDData;
-basetupdata BillValidatorSetupData;
-mdbdevice BillValidatorDevice;
+extern baiddata BillValidatorIDData;
+extern basetupdata BillValidatorSetupData;
+extern mdbdevice BillValidatorDevice;
 
 void BillValidatorPollResponse(void);
 void GetBillValidatorIdentification(void);

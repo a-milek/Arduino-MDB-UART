@@ -21,7 +21,11 @@
 #include "myflash.h"
 
 
-#define MAX_MDB_BUFFER 32 
+baiddata BillValidatorIDData;
+basetupdata BillValidatorSetupData;
+mdbdevice BillValidatorDevice;
+
+#define MAX_MDB_BUFFER 32
 void BillValidatorPollResponse()
 {
 	BillValidatorDevice.OfflinePollsCount = 10;

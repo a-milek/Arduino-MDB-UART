@@ -4,10 +4,10 @@
  * Created: 18.05.2019 10:03:37
  *  Author: root
  */ 
-#include "MDB_M.h"
-
 #ifndef COINHOPPER_M_H_
 #define COINHOPPER_M_H_
+
+#include "MDB_M.h"
 
 typedef struct {
 	uint8_t DispenserFeatureLevel;
@@ -28,9 +28,9 @@ typedef struct {
 	uint8_t ModelRevision[12];
 } chiddata;
 
-chiddata CoinHopperIDData[2];
-chsetupdata CoinHopperSetupData[2];
-mdbdevice CoinHopperDevice[2];
+extern chiddata CoinHopperIDData[2];
+extern chsetupdata CoinHopperSetupData[2];
+extern mdbdevice CoinHopperDevice[2];
 
 void GetCoinHopperSetupData(uint8_t index);
 void GetCoinHopperDispenserStatus(uint8_t index);

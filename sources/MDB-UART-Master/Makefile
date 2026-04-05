@@ -49,6 +49,7 @@ COMMON_FLAGS = \
     -funsigned-char \
     -funsigned-bitfields \
     -fpack-struct \
+    -fno-common \
     -Wall \
     -Wl,--relax
 
@@ -69,7 +70,7 @@ AVRDUDE_FLAGS = -c $(PROGRAMMER) -p m4808 -P $(PORT)
 
 # ── Targets ────────────────────────────────────────────────────────────────
 
-.PHONY: all debug release flash flash-eep size clean
+.PHONY: all debug release flash flash-eep size clean compiledb
 
 all: $(BUILDDIR)/$(TARGET).hex $(BUILDDIR)/$(TARGET).eep
 
@@ -108,6 +109,9 @@ flash: $(BUILDDIR)/$(TARGET).hex
 
 flash-eep: $(BUILDDIR)/$(TARGET).eep
 	$(AVRDUDE) $(AVRDUDE_FLAGS) -U eeprom:w:$<:i
+
+compiledb:
+	python3 -m compiledb make --dry-run
 
 clean:
 	rm -rf build/

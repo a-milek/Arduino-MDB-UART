@@ -4,11 +4,10 @@
  * Created: 18.05.2019 10:08:09
  *  Author: root
  */ 
-#include "MDB_M.h"
-
-
 #ifndef CASHLESS_M_H_
 #define CASHLESS_M_H_
+
+#include "MDB_M.h"
 
 typedef struct {
 	uint8_t ReaderFeatureLevel;

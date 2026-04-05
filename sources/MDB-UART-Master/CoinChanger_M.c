@@ -23,6 +23,10 @@
 #include "utils.h"
 #include "myflash.h"
 
+cciddata CoinChangerIDData;
+ccsetupdata CoinChangerSetupData;
+mdbdevice CoinChangerDevice;
+
 uint8_t CoinChangerInManualFillOrPaymentMode = 0;
 
 void GetCoinChangerSetupData()

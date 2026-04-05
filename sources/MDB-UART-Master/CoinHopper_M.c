@@ -22,6 +22,10 @@
 #include "Settings_M.h"
 #include "myflash.h"
 
+chiddata CoinHopperIDData[2];
+chsetupdata CoinHopperSetupData[2];
+mdbdevice CoinHopperDevice[2];
+
 void GetCoinHopperSetupData(uint8_t index)
 {
 	char tmpstr2[16];

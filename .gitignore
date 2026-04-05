@@ -250,3 +250,9 @@ ModelManifest.xml
 
 # Local build config (machine-specific toolchain paths)
 local.mk
+
+# clangd generated compilation database
+compile_commands.json
+
+# Claude Code local session data
+.claude/

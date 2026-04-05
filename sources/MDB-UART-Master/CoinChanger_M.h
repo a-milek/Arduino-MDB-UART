@@ -4,10 +4,10 @@
  * Created: 18.05.2019 09:59:01
  *  Author: root
  */ 
-#include "MDB_M.h"
-
 #ifndef COINCHANGER_M_H_
 #define COINCHANGER_M_H_
+
+#include "MDB_M.h"
 
 typedef struct {
 	uint16_t SoftwareVersion;
@@ -29,9 +29,9 @@ typedef struct {
 	uint8_t CoinTypeCredit[16];
 } ccsetupdata;
 
-cciddata CoinChangerIDData;
-ccsetupdata CoinChangerSetupData;
-mdbdevice CoinChangerDevice;
+extern cciddata CoinChangerIDData;
+extern ccsetupdata CoinChangerSetupData;
+extern mdbdevice CoinChangerDevice;
 
 void GetCoinChangerTubeStatus(void);
 void GetCoinChangerSetupData(void);

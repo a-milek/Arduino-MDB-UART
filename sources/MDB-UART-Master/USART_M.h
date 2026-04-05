@@ -7,8 +7,8 @@
 /* ---------- Buffers ---------- */
 #define MDB_UART_BUFFER_MAX  64
 extern uint8_t EXT_UART_BUFFER[32];
-volatile uint8_t EXT_UART_BUFFER_COUNT;
-volatile uint8_t EXTCMDCOMPLETE;
+extern volatile uint8_t EXT_UART_BUFFER_COUNT;
+extern volatile uint8_t EXTCMDCOMPLETE;
 
 /* MDB receiving flags */
 extern volatile uint8_t MDBReceiveComplete;
