@@ -801,14 +801,9 @@ void GetBillValidatorSetupData()
 			}
 		}
 		} else {
-		for (int i = 0; i < 3; i++)
-		{
-			uint8_t buff[20];
-			XXXX_sprintf_FSTR((char*)buff,"BV*CFG*ERR",i + 1);
-			EXT_UART_Transmit(buff);
-			EXT_CRLF();
-			if (BillValidatorDevice.OfflinePollsCount > 0) BillValidatorDevice.OfflinePollsCount--;
-		}
+		EXT_UART_Transmit_S("BV*CFG*ERR");
+		EXT_CRLF();
+		if (BillValidatorDevice.OfflinePollsCount > 0) BillValidatorDevice.OfflinePollsCount--;
 	}
 }
 
