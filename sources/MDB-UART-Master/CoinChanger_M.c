@@ -368,30 +368,19 @@ void CoinChangerDispense(uint8_t DispenseParams)
 	while (!MDBReceiveComplete){
 		MDB_read();
 	}
+	EXT_UART_Transmit_S("CC*DISPENSE*");
 	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 	{
-		CoinChangerDevice.OfflinePollsCount = 5;
-		EXT_UART_Transmit_S("CC*DISPENSE*");
-		switch (MDB_BUFFER[0])
+		if (MDB_RESPONSE_TYPE == MDB_RESP_ACK)
 		{
-			case 0x00:
 			CoinChangerDevice.Status = 2;//awaiting dispense
 			EXT_UART_OK();
-			break;
-			case 0xff:
-			EXT_UART_NAK();
-			break;
-			default:
-			EXT_UART_Transmit_S("UNKNOWN");
-			EXT_CRLF();
-			break;
+			CoinChangerDevice.OfflinePollsCount = 5;
+			return;
 		}
-	} else
-	{
-		EXT_UART_Transmit_S("CC*DISPENSE*FAIL");
-		EXT_CRLF();
-		if (CoinChangerDevice.OfflinePollsCount > 0) CoinChangerDevice.OfflinePollsCount--;
 	}
+	EXT_UART_FAIL();
+	if (CoinChangerDevice.OfflinePollsCount > 0) CoinChangerDevice.OfflinePollsCount--;
 }
 
 void CoinChangerAlternativePayout(uint8_t PayoutValue)
