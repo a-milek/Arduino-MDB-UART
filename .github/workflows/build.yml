@@ -2,7 +2,7 @@ name: Build
 
 on:
   push:
-    branches: [master, atmega-4808-v2]
+    branches: [master, atmega-4808-v2, atmega-4808-v3-clau]
   pull_request:
     branches: [master]
 
