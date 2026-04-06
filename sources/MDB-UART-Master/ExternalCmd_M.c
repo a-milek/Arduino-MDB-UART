@@ -3,7 +3,7 @@
  *
  * Created: 26.08.2019 09:47:57
  *  Author: root
- */ 
+ */
 #include <avr/io.h>
 #include <util/delay.h>
 #include <stdio.h>
@@ -16,24 +16,244 @@
 #include "BillValidator_M.h"
 #include "CoinHopper_M.h"
 #include "Cashless_M.h"
-#include "USART_M.h"
 #include "Settings_M.h"
-#include <stdlib.h> 
+#include <stdlib.h>
 #include "config.h"
 
+/* --- Safe buffer snapshot: copies volatile buffer under cli/sei --- */
+static void extcmd_snapshot(char *buf, size_t bufsz)
+{
+	cli();
+	uint8_t len = EXT_UART_BUFFER_COUNT;
+	if (len >= bufsz) len = bufsz - 1;
+	memcpy(buf, (const void *)EXT_UART_BUFFER, len);
+	EXT_UART_BUFFER_COUNT = 0;
+	EXTCMDCOMPLETE = 0;
+	sei();
+	buf[len] = '\0';
+}
 
-void extcmd_process_9diagnostic(uint16_t secondlevelcmd, char tmp[][6], size_t tmpcnt) {
+/* --- Field-peeling helpers --- */
 
+// Parse leading decimal integer from *s, advance past next '*'.
+// Returns dflt if *s is empty or NULL.
+static uint16_t extcmd_next_u16(const char **s, uint16_t dflt)
+{
+	if (*s == NULL || **s == '\0') return dflt;
+	uint16_t val = (uint16_t)atoi(*s);
+	const char *sep = strchr(*s, '*');
+	*s = sep ? sep + 1 : *s + strlen(*s);
+	return val;
+}
 
-	switch(secondlevelcmd) {
+// Parse leading double from *s, advance past next '*'.
+static double extcmd_next_double(const char **s, double dflt)
+{
+	if (*s == NULL || **s == '\0') return dflt;
+	double val = strtod(*s, NULL);
+	const char *sep = strchr(*s, '*');
+	*s = sep ? sep + 1 : *s + strlen(*s);
+	return val;
+}
+
+// Count remaining '*'-delimited fields. "" → 0, "x" → 1, "x*y" → 2.
+static uint8_t extcmd_argc(const char *s)
+{
+	if (s == NULL || *s == '\0') return 0;
+	uint8_t n = 1;
+	while (*s) {
+		if (*s == '*') n++;
+		s++;
+	}
+	return n;
+}
+
+// Get pointer to current field value without advancing (for string access)
+static const char *extcmd_field_str(const char *s)
+{
+	return (s && *s) ? s : "";
+}
+
+/* --- Device dispatch functions --- */
+
+static void extcmd_process_0reset(const char *args)
+{
+	uint16_t sub = extcmd_next_u16(&args, 0xFF);
+	switch (sub) {
+		case 0: ResetAll(); break;
+		case 1: ResetCoinChangerOptions(); break;
+		case 2: ResetBVOptions(); break;
+		case 3: ResetCoinHoppersOptions(); break;
+	}
+}
+
+static void extcmd_process_1coinchanger(const char *args)
+{
+	uint16_t sub = extcmd_next_u16(&args, 0xFF);
+
+	switch (sub) {
 		case 1:
-		 {
-				EXT_UART_Transmit_S("DIAG*PING");
-				EXT_CRLF();
-		 }
-		 break;
+			MDBDeviceReset(0x08);
+			break;
 		case 2:
-		{
+			GetCoinChangerSetupData();
+			GetCoinChangerTubeStatus();
+			GetCoinChangerIdentification();
+			break;
+		case 3: {
+			// "1*3*+" / "1*3*65535*+" / "1*3*65535*65535*+"
+			uint16_t accept = extcmd_next_u16(&args, 0xFFFF);
+			uint16_t dispense = extcmd_next_u16(&args, 0xFFFF);
+			CoinChangerEnableAcceptCoins(accept, dispense);
+			break;
+		}
+		case 4:
+			CoinChangerDisableAcceptCoins();
+			break;
+		case 5:
+			if (extcmd_argc(args) >= 2) {
+				uint8_t cointype = extcmd_next_u16(&args, 0) & 0x0f;
+				uint8_t quantity = extcmd_next_u16(&args, 0) & 0x0f;
+				uint8_t params = (quantity << 4) | (cointype - 1);
+				CoinChangerDispense(params);
+			}
+			break;
+		case 6:
+			if (extcmd_argc(args) >= 1) {
+				CoinChangerAlternativePayout(extcmd_next_u16(&args, 0) & 0xff);
+			}
+			break;
+		case 7:
+			break;
+		case 8:
+			if (extcmd_argc(args) >= 3) {
+				uint8_t a = extcmd_next_u16(&args, 0) & 0xff;
+				uint8_t b = extcmd_next_u16(&args, 0) & 0xff;
+				uint8_t c = extcmd_next_u16(&args, 0) & 0xff;
+				CoinChangerEnableCoinType(a, b, c);
+			}
+			break;
+		case 9:
+			if (extcmd_argc(args) >= 3) {
+				uint8_t a = extcmd_next_u16(&args, 0) & 0xff;
+				uint8_t b = extcmd_next_u16(&args, 0) & 0xff;
+				uint8_t c = extcmd_next_u16(&args, 0) & 0xff;
+				CoinChangerConfigFeatures(a, b, c);
+			}
+			break;
+		case 0x0a:
+			EXT_UART_Transmit_S("WMDIAG*9");
+			EXT_CRLF();
+			GetCoinChangerTubeStatus();
+			EXT_UART_Transmit_S("WMDIAG*10");
+			EXT_CRLF();
+			break;
+	}
+}
+
+static void extcmd_process_2billvalidator(const char *args)
+{
+	uint16_t sub = extcmd_next_u16(&args, 0xFF);
+
+	switch (sub) {
+		case 1:
+			MDBDeviceReset(0x30);
+			break;
+		case 2:
+			GetBillValidatorSetupData();
+			break;
+		case 3:
+			BillValidatorEnableAcceptBills();
+			break;
+		case 4:
+			BillValidatorDisableAcceptBills();
+			break;
+		case 5:
+			if (extcmd_argc(args) >= 1) {
+				BillValidatorEscrow(extcmd_next_u16(&args, 0) & 0x01);
+			}
+			break;
+		case 6:
+			if (extcmd_argc(args) >= 2) {
+				uint8_t count = extcmd_next_u16(&args, 0) & 0xff;
+				uint16_t value = extcmd_next_u16(&args, 0);
+				BVDispenseBills(count, value);
+			}
+			break;
+		case 7:
+			if (extcmd_argc(args) >= 1) {
+				BVDispenseValue(extcmd_next_u16(&args, 0));
+			}
+			break;
+		case 8:
+			if (extcmd_argc(args) >= 6) {
+				uint8_t a = extcmd_next_u16(&args, 0) & 0xff;
+				uint8_t b = extcmd_next_u16(&args, 0) & 0xff;
+				uint8_t c = extcmd_next_u16(&args, 0) & 0xff;
+				uint8_t d = extcmd_next_u16(&args, 0) & 0xff;
+				uint8_t e = extcmd_next_u16(&args, 0) & 0xff;
+				uint8_t f = extcmd_next_u16(&args, 0) & 0xff;
+				BillValidatorEnableBillType(a, b, c, d, e, f);
+			}
+			break;
+		case 9:
+			if (extcmd_argc(args) >= 1) {
+				BillValidatorConfigFeatures(extcmd_next_u16(&args, 0) & 0xff);
+			}
+			break;
+		case 10:
+			BillValidatorCancelPayout();
+			break;
+	}
+}
+
+static void extcmd_process_3coinhopper(const char *args)
+{
+	if (extcmd_argc(args) < 2) return;
+
+	uint8_t index = (extcmd_next_u16(&args, 1) == 1) ? 0 : 1;
+	uint16_t sub = extcmd_next_u16(&args, 0xFF);
+
+	switch (sub) {
+		case 1:
+			MDBDeviceReset(index ? 0x73 : 0x58);
+			break;
+		case 2:
+			GetCoinHopperSetupData(index);
+			GetCoinHopperIdentification(index);
+			break;
+		case 6:
+			if (extcmd_argc(args) >= 2) {
+				uint8_t cointype = extcmd_next_u16(&args, 0) & 0xff;
+				uint16_t count = extcmd_next_u16(&args, 0);
+				CoinHopperDispenseCoins(index, cointype, count);
+			}
+			break;
+		case 7:
+			if (extcmd_argc(args) >= 1) {
+				CoinHopperDispenseValue(index, extcmd_next_u16(&args, 0));
+			}
+			break;
+		case 8:
+			if (extcmd_argc(args) >= 2) {
+				uint8_t a = extcmd_next_u16(&args, 0) & 0xff;
+				uint8_t b = extcmd_next_u16(&args, 0) & 0xff;
+				CoinHopperEnableManualDispenseCoinType(index, a, b);
+			}
+			break;
+	}
+}
+
+static void extcmd_process_9diagnostic(const char *args)
+{
+	uint16_t sub = extcmd_next_u16(&args, 0xFF);
+
+	switch (sub) {
+		case 1:
+			EXT_UART_Transmit_S("DIAG*PING");
+			EXT_CRLF();
+			break;
+		case 2:
 			// ref 7.4.1 Reset and Initialising
 			CashlessDeviceSetup(0);
 			EXT_UART_Transmit_S("WMDIAG*PRICES16");
@@ -43,319 +263,92 @@ void extcmd_process_9diagnostic(uint16_t secondlevelcmd, char tmp[][6], size_t t
 			EXT_UART_Transmit_S("WMDIAG*OPT");
 			CashlessDeviceEnableOptFetures(0);
 			CashlessDeviceSetupPrices32bit(0);
-		
 			EXT_UART_Transmit_S("DIAG*ENABLE");
 			ReaderEDC(0, 0x01);
-		}
-		break;
-		case  3:
-		{
-			EXT_UART_Transmit_S("DIAG*RVR");
-				EXT_UART_Transmit_S(tmp[0]);
+			break;
+		case 3:
+			if (extcmd_argc(args) >= 2) {
+				const char *price_str = extcmd_field_str(args);
+				double price = extcmd_next_double(&args, 0.0);
+				const char *item_str = extcmd_field_str(args);
+				uint16_t itemnumber = extcmd_next_u16(&args, 0);
+				EXT_UART_Transmit_S("DIAG*RVR");
+				EXT_UART_Transmit_S(price_str);
 				EXT_UART_Transmit_S(":");
-				EXT_UART_Transmit_S(tmp[1]);
+				EXT_UART_Transmit_S(item_str);
 				EXT_CRLF();
-			if (tmpcnt >= 2) {
-				double price = strtod(tmp[0], NULL);
-				uint16_t itemnumber = atoi(tmp[1]);
 				ReaderVendRequest(0, price, itemnumber);
 			}
-		}
-		break;
+			break;
 		case 4:
-		{
-			if (tmpcnt >= 1) {
-				uint16_t itemnumber = atoi(tmp[0]);
-				ReaderVendSuccess(0, itemnumber);
+			if (extcmd_argc(args) >= 1) {
+				ReaderVendSuccess(0, extcmd_next_u16(&args, 0));
 			}
-		}
-		break;
-
-		case 5: {
+			break;
+		case 5:
 			ReaderSessionComplete(0);
-		}
-		break;
-		
-		case 6: {
+			break;
+		case 6:
 			ReaderReset(0);
-		}
-		break;
-		
-		case 7: {
-			if (tmpcnt >= 1) {
-				uint16_t cmd = atoi(tmp[0]);
-				ReaderEDC(0, cmd);
+			break;
+		case 7:
+			if (extcmd_argc(args) >= 1) {
+				ReaderEDC(0, extcmd_next_u16(&args, 0));
 			}
-		}
-		break;
-		
-		case 8: {
+			break;
+		case 8:
 			ReaderVendFailure(0);
-		}
-		break;
-		
-		
-		case 9: {
-			if (tmpcnt >= 2) {
-				double price = strtod(tmp[0], NULL);
-				uint16_t itemnumber = atoi(tmp[1]);
+			break;
+		case 9:
+			if (extcmd_argc(args) >= 2) {
+				double price = extcmd_next_double(&args, 0.0);
+				uint16_t itemnumber = extcmd_next_u16(&args, 0);
 				ReaderCashSale(0, price, itemnumber);
 			}
-		}
-		break;
-		
-		case 10: {
+			break;
+		case 10:
 			ReaderVendCancel(0);
-		}
-		break;
-
+			break;
 	}
 }
 
-void extcmd_process_10system(uint16_t secondlevelcmd, char tmp[][6], size_t tmpcnt) {
-	switch(secondlevelcmd) {
+static void extcmd_process_10system(const char *args)
+{
+	uint16_t sub = extcmd_next_u16(&args, 0xFF);
+
+	switch (sub) {
 		case 1:
-		{
 			EXT_UART_Transmit_S("SYS*PING*OK");
 			EXT_CRLF();
-		}
-		break;
-		case 99: 
-		{
+			break;
+		case 99:
 			EXT_UART_Transmit_S("SYS*RESET*OK");
 			EXT_CRLF();
 			delay_1ms(10);
 			CPU_CCP = CCP_IOREG_gc;
 			RSTCTRL.SWRR = (1 << RSTCTRL_SWRE_bp);
 			while(1) {};
-		}
-		break;
-		
-		default:
-		break;
-	
+			break;
 	}
 }
-	
 
-void EXTCMD_PROCESS() {//receive commands from VMC
-	int cnt = 0;
-	uint8_t tmplen = EXT_UART_BUFFER_COUNT;
-	uint8_t TMP[tmplen];
-	memcpy(&TMP, &EXT_UART_BUFFER, tmplen);
-	
+/* --- Main dispatcher --- */
 
-//	EXT_UART_Transmit_HEXDUMP(TMP, tmplen);
-	
-	EXT_UART_BUFFER_COUNT = 0;
-	EXTCMDCOMPLETE = 0;
-	for (int i = 0; i < tmplen; i++)
-	{
-		if (TMP[i] == '*') cnt++;
-	}
-	char tmp[cnt][6];
-	int tmpcnt = 0;
-	char * p = strtok((char*)TMP, "*");
-	while (p) {
-		if ((tmpcnt < cnt) && (sizeof(p) <= 6)) strcpy((char*)&tmp[tmpcnt++], p);
-		p = strtok(NULL, "*");
-	}
-	
-	if (tmpcnt > 0)
-	{
-		uint16_t toplevelcmd = atoi((char*)&tmp[0]);
-		uint16_t secondlevelcmd = atoi((char*)&tmp[1]);
-		switch (toplevelcmd)
-		{
-			case 0:
-			{
-				switch (secondlevelcmd)
-				{
-					case 0:
-					ResetAll();
-					break;
-					case 1:
-					ResetCoinChangerOptions();
-					break;
-					case 2:
-					ResetBVOptions();
-					break;
-					case 3:
-					ResetCoinHoppersOptions();
-					break;
-				}
-			}
-			break;
-			case 1:
-			switch (secondlevelcmd)
-			{
-				case 1:
-				MDBDeviceReset(0x08);
-				break;
-				case 2:
-				GetCoinChangerSetupData();
-				GetCoinChangerTubeStatus();
-				GetCoinChangerIdentification();
-				break;
-				case 3:
-				{
-					// "1*3*+")
-					// "1*3*65535*+ 
-					// "1*3*65535*65535*+
-					uint16_t EnableAcceptCoinsBitsMask = 0xffff;
-					uint16_t EnableDispenseCoinsBitsMask = 0xffff;
-					if (cnt >= 3) {
-						EnableAcceptCoinsBitsMask = atoi(tmp[3]);
-					}
-					if (cnt >= 4) {
-						EnableDispenseCoinsBitsMask = atoi(tmp[4]);
-					}
-					
-					CoinChangerEnableAcceptCoins(EnableAcceptCoinsBitsMask, EnableDispenseCoinsBitsMask);	
-				}
-				break;
-				case 4:
-				CoinChangerDisableAcceptCoins();
-				break;
-				case 5:
-				{
-					if (cnt == 4)
-					{
-						uint8_t DispenseParams = (atoi((char*)&tmp[3]) << 4) & 0xff;//high 4 bits - quantity, max value = 15
-						DispenseParams = DispenseParams | ((atoi((char*)&tmp[2]) & 0x0f) - 1);//lower 4 bits - coin type, max value = 15
-						CoinChangerDispense(DispenseParams);
-					}
-				}
-				break;
-				case 6:
-				if (cnt == 3)
-				{
-					CoinChangerAlternativePayout(atoi((char*)&tmp[2]) & 0xff);
-				}
-				break;
-				case 7:
-				//CoinChangerControlledManualFillReport();
-				break;
-				case 8:
-				if (cnt == 5)
-				{
-					CoinChangerEnableCoinType(atoi((char*)&tmp[2]),atoi((char*)&tmp[3]),atoi((char*)&tmp[4]));
-				}
-				break;
-				case 9:
-				if (cnt == 5)
-				{
-					CoinChangerConfigFeatures(atoi((char*)&tmp[2]),atoi((char*)&tmp[3]),atoi((char*)&tmp[4]));
-				}
-				break;
-				
-				case 0x0a: //TUBE STATUS
-				{
-					EXT_UART_Transmit_S("WMDIAG*9");
-					EXT_CRLF();
-					GetCoinChangerTubeStatus();
-					EXT_UART_Transmit_S("WMDIAG*10");
-					EXT_CRLF();
-				}
-				break;
-			}
-			break;
-			case 2:
-			switch (secondlevelcmd)
-			{
-				case 1:
-				MDBDeviceReset(0x30);
-				break;
-				case 2:
-				GetBillValidatorSetupData();
-				break;
-				case 3:
-				BillValidatorEnableAcceptBills();
-				break;
-				case 4:
-				BillValidatorDisableAcceptBills();
-				break;
-				case 5:
-				if (cnt == 3)
-				{
-					BillValidatorEscrow(atoi((char*)&tmp[2]) & 0x01);
-				}
-				break;
-				case 6:
-				if (cnt == 4)
-				{
-					BVDispenseBills(atoi((char*)&tmp[2]) & 0xff, atoi((char*)&tmp[3]) & 0xffff);
-				}
-				break;
-				case 7:
-				if (cnt == 3)
-				{
-					BVDispenseValue(atoi((char*)&tmp[2]) & 0xffff);
-				}
-				break;
-				case 8:
-				if (cnt == 8)
-				{
-					BillValidatorEnableBillType(atoi((char*)&tmp[2]),atoi((char*)&tmp[3]),atoi((char*)&tmp[4]),atoi((char*)&tmp[5]),atoi((char*)&tmp[6]),atoi((char*)&tmp[7]));
-				}
-				break;
-				case 9:
-				if (cnt == 3)
-				{
-					BillValidatorConfigFeatures(atoi((char*)&tmp[2]));
-				}
-				break;
-				case 10:
-				BillValidatorCancelPayout();
-				break;
-			}
-			break;
-			case 3:
-			if (cnt >= 3)
-			{
-				uint8_t index = (atoi((char*)&tmp[1]) == 1) ? 0 : 1;
-				uint16_t thirdlevelcmd = atoi((char*)&tmp[2]);
-				switch (thirdlevelcmd)
-				{
-					case 1:
-					MDBDeviceReset((index) ? 0x73 : 0x58);
-					break;
-					case 2:
-					GetCoinHopperSetupData(index);
-					GetCoinHopperIdentification(index);
-					break;
-					case 6:
-					if (cnt == 5)
-					{
-						CoinHopperDispenseCoins(index, atoi((char*)&tmp[3]) & 0xff, atoi((char*)&tmp[4]) & 0xffff);
-					}
-					break;
-					case 7:
-					if (cnt == 4)
-					{
-						CoinHopperDispenseValue(index, atoi((char*)&tmp[3]) & 0xffff);
-					}
-					break;
-					case 8:
-					if (cnt == 5)
-					{
-						CoinHopperEnableManualDispenseCoinType(index, atoi((char*)&tmp[3]) & 0xff, atoi((char*)&tmp[4]) & 0xff);
-					}
-					break;
-				}
-			}
-			break;
-			case 9: // WM diag
-			{
-				extcmd_process_9diagnostic(secondlevelcmd, &tmp[2], tmpcnt-2);
-			}
-			break;
-			case 10: // system 
-			{
-				extcmd_process_10system(secondlevelcmd, &tmp[2], tmpcnt-2);
-			}
-			break;
-			
-		}
+void EXTCMD_PROCESS(void)
+{
+	char buf[33];
+	extcmd_snapshot(buf, sizeof(buf));
+
+	const char *s = buf;
+	if (*s == '\0') return;
+
+	uint16_t top = extcmd_next_u16(&s, 0xFF);
+	switch (top) {
+		case 0:  extcmd_process_0reset(s);          break;
+		case 1:  extcmd_process_1coinchanger(s);    break;
+		case 2:  extcmd_process_2billvalidator(s);  break;
+		case 3:  extcmd_process_3coinhopper(s);     break;
+		case 9:  extcmd_process_9diagnostic(s);     break;
+		case 10: extcmd_process_10system(s);        break;
 	}
 }
