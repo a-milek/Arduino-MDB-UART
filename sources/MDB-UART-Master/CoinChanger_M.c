@@ -612,11 +612,105 @@ void GetCoinChangerIdentification()
 	}
 }
 
+// Decode and output one diagnostic status pair (2 bytes)
+static void ProcessCCDiagPair(uint8_t byte0, uint8_t byte1)
+{
+	uint8_t statusvaluebytes[2] = {byte0, byte1};
+	uint16_t statusvalue = BCDByteToInt(statusvaluebytes, sizeof(statusvaluebytes));
+	char msg[16];
+	XXXX_sprintf_FSTR(msg,"%s*%02x%02x", "UNK", byte0, byte1);
+
+	if ((statusvalue != 510) && CoinChangerInManualFillOrPaymentMode)
+	{
+		CoinChangerInManualFillOrPaymentMode = 0;
+		CoinChangerControlledManualFillReport();
+	}
+
+	// BCD-based status codes
+	switch (statusvalue)
+	{
+		case 100: sprintf(msg,"%s", "POWERUP"); break;
+		case 200: sprintf(msg,"%s", "POWERDOWN"); break;
+		case 300: sprintf(msg,"%s", "OK"); break;
+		case 400: sprintf(msg,"%s", "KEYPADSHIFTED"); break;
+		case 510:
+			sprintf(msg,"%s", "MANUALFILLPAY");
+			if (CoinChangerInManualFillOrPaymentMode != 1) CoinChangerInManualFillOrPaymentMode = 1;
+			break;
+		case 520: sprintf(msg,"%s", "NEWINVENTORY"); break;
+		case 600: sprintf(msg,"%s", "INHIBITED"); break;
+	}
+
+	// Module-specific error codes (byte0 = module, byte1 = detail)
+	switch (byte0)
+	{
+		case 0x10: // General changer error
+			switch (byte1)
+			{
+				case 0x00: sprintf(msg,"%s", "ERROR"); break;
+				case 0x01: sprintf(msg,"%s", "CSERR1"); break;
+				case 0x02: sprintf(msg,"%s", "CSERR2"); break;
+				case 0x03: sprintf(msg,"%s", "LOWVOLTAGE"); break;
+			}
+			break;
+		case 0x11: // Discriminator module error
+			switch (byte1)
+			{
+				case 0x00: sprintf(msg,"%s", "DISCERR"); break;
+				case 0x10: sprintf(msg,"%s", "DISCDECK"); break;
+				case 0x11: sprintf(msg,"%s", "DISCOPN"); break;
+				case 0x30: sprintf(msg,"%s", "DISCJAM"); break;
+				case 0x41: sprintf(msg,"%s", "DISCBLSTD"); break;
+				case 0x50: sprintf(msg,"%s", "DISCASENS"); break;
+				case 0x51: sprintf(msg,"%s", "DISCBSENS"); break;
+				case 0x52: sprintf(msg,"%s", "DISCCSENS"); break;
+				case 0x53: sprintf(msg,"%s", "DISCTMP"); break;
+				case 0x54: sprintf(msg,"%s", "DISCOPT"); break;
+			}
+			break;
+		case 0x12: // Accept gate module error
+			switch (byte1)
+			{
+				case 0x00: sprintf(msg,"%s", "GATERR"); break;
+				case 0x30: sprintf(msg,"%s", "GATNX"); break;
+				case 0x31: sprintf(msg,"%s", "GATALM"); break;
+				case 0x40: sprintf(msg,"%s", "GATND"); break;
+				case 0x50: sprintf(msg,"%s", "GATSENS"); break;
+			}
+			break;
+		case 0x13: // Separator module error
+			switch (byte1)
+			{
+				case 0x00: sprintf(msg,"%s", "SEPERR"); break;
+				case 0x10: sprintf(msg,"%s", "SEPSENS"); break;
+			}
+			break;
+		case 0x14: // Dispenser module error
+			switch (byte1)
+			{
+				case 0x00: sprintf(msg,"%s", "DISPERR"); break;
+			}
+			break;
+		case 0x15: // Coin cassette/tube module error
+			switch (byte1)
+			{
+				case 0x00: sprintf(msg,"%s", "CASERR"); break;
+				case 0x02: sprintf(msg,"%s", "CASRMD"); break;
+				case 0x03: sprintf(msg,"%s", "CASSENS"); break;
+				case 0x04: sprintf(msg,"%s", "CASLIT"); break;
+			}
+			break;
+	}
+
+	EXT_UART_Transmit_S("CC*DIAG*");
+	EXT_UART_Transmit_S(msg);
+	EXT_CRLF();
+}
+
 void GetCoinChangerDiagnosticStatus()
 {
 	//EXPANSION SEND DIAG STATUS � 0F 05h 
 	uint8_t cmd[3] = {0x0f, 0x05, 0x14}; // 0FH EXPANSION COMMAND / SEND DIAGNOSTIC STATUS + 0x14 CHECK 
-	uint8_t suppress = 0;
 	MDB_Send(cmd,3);
 	while (!MDBReceiveComplete)
 	{
@@ -624,8 +718,18 @@ void GetCoinChangerDiagnosticStatus()
 	}
 	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 	{
-		
-		if (MDB_BUFFER_COUNT > 2 && (((MDB_BUFFER_COUNT - 1) % 2) == 0))
+		if (MDB_RESPONSE_TYPE == MDB_RESP_ACK)
+		{
+			EXT_UART_Transmit_S("CC*DIAG*OK");
+			EXT_CRLF();
+			CoinChangerDevice.OfflinePollsCount = 5;
+		}
+		else if (MDB_RESPONSE_TYPE == MDB_RESP_NAK)
+		{
+			EXT_UART_Transmit_S("CC*DIAG*NAK");
+			EXT_CRLF();
+		}
+		else if (MDB_RESPONSE_TYPE == MDB_RESP_DATA && MDB_BUFFER_COUNT >= 2 && ((MDB_BUFFER_COUNT % 2) == 0))
 		{
 			MDB_ACK();
 			CoinChangerDevice.OfflinePollsCount = 5;
@@ -634,231 +738,18 @@ void GetCoinChangerDiagnosticStatus()
 			memcpy(TMP, MDB_BUFFER, MDB_BUFFER_COUNT);
 
 			EXT_UART_Transmit_HEXDUMP("DIAGST", TMP, MDB_BUFFER_COUNT);
-			for (int i = 0; i < tmplen - 1; i++)
+			for (int i = 0; i < tmplen - 1; i += 2)
 			{
-				uint8_t statusvaluebytes[2] = {TMP[i], TMP[i + 1]};
-				uint16_t statusvalue = BCDByteToInt(statusvaluebytes, sizeof(statusvaluebytes));
-				uint8_t tmpdmsg[16];
-				XXXX_sprintf_FSTR((char*)tmpdmsg,"%s*%02x%02x", "UNK", TMP[i], TMP[i + 1]); // WM: CC*DIAG*UNK*0540
-				if ((statusvalue != 510) && CoinChangerInManualFillOrPaymentMode)
-				{
-					CoinChangerInManualFillOrPaymentMode = 0;
-					CoinChangerControlledManualFillReport();
-				}
-				switch (statusvalue)
-				{
-					case 100:
-					sprintf((char*)tmpdmsg,"%s", "POWERUP"); // Powering up
-					break;
-					case 200:
-					sprintf((char*)tmpdmsg,"%s", "POWERDOWN");
-					break;
-					case 300:
-					sprintf((char*)tmpdmsg,"%s", "OK");
-					//we will suppress diagnostic output if all is OK with coin changer
-					//suppress = 1;
-					break;
-					case 400:
-					sprintf((char*)tmpdmsg,"%s", "KEYPADSHIFTED");
-					break;
-					case 510:
-					sprintf((char*)tmpdmsg,"%s", "MANUALFILLPAY");
-					if (CoinChangerInManualFillOrPaymentMode != 1) CoinChangerInManualFillOrPaymentMode = 1;
-					break;
-					case 520:
-					sprintf((char*)tmpdmsg,"%s", "NEWINVENTORY");
-					break;
-					case 600:
-					sprintf((char*)tmpdmsg,"%s", "INHIBITED"); // Inhibited by VMC
-					break;
-				}
-				switch (TMP[i])
-				{
-					case 0x10: // General changer error
-					{
-						switch (TMP[i + 1])
-						{
-							case 0x00:
-							{
-								sprintf((char*)tmpdmsg,"%s", "ERROR");
-								break;
-							}
-							case 0x01:
-							{
-								sprintf((char*)tmpdmsg,"%s", "CSERR1");
-								break;
-							}
-							case 0x02:
-							{
-								sprintf((char*)tmpdmsg,"%s", "CSERR2");
-								break;
-							}
-							case 0x03:
-							{
-								sprintf((char*)tmpdmsg,"%s", "LOWVOLTAGE");
-								break;
-							}
-						}
-					}
-					break;
-					case 0x11: // Discriminator module error
-					{
-						switch (TMP[i + 1])
-						{
-							case 0x00:
-							{
-								sprintf((char*)tmpdmsg,"%s", "DISCERR");
-								break;
-							}
-							case 0x10:
-							{
-								sprintf((char*)tmpdmsg,"%s", "DISCDECK");
-								break;
-							}
-							case 0x11:
-							{
-								sprintf((char*)tmpdmsg,"%s", "DISCOPN");
-								break;
-							}
-							case 0x30:
-							{
-								sprintf((char*)tmpdmsg,"%s", "DISCJAM");
-								break;
-							}
-							case 0x41:
-							{
-								sprintf((char*)tmpdmsg,"%s", "DISCBLSTD"); // Discrimination below specified standard. wystapilo, CLEAN ME
-								break;
-							}
-							case 0x50:
-							{
-								sprintf((char*)tmpdmsg,"%s", "DISCASENS");
-								break;
-							}
-							case 0x51:
-							{
-								sprintf((char*)tmpdmsg,"%s", "DISCBSENS");
-								break;
-							}
-							case 0x52:
-							{
-								sprintf((char*)tmpdmsg,"%s", "DISCCSENS");
-								break;
-							}
-							case 0x53:
-							{
-								sprintf((char*)tmpdmsg,"%s", "DISCTMP");
-								break;
-							}
-							case 0x54:
-							{
-								sprintf((char*)tmpdmsg,"%s", "DISCOPT");
-								break;
-							}
-						}
-					}
-					break;
-					case 0x12: // Accept gate module error
-					{
-						switch (TMP[i + 1])
-						{
-							case 0x00:
-							{
-								sprintf((char*)tmpdmsg,"%s", "GATERR"); // Non specific accept gate error.
-								break;
-							}
-							case 0x30:
-							{
-								sprintf((char*)tmpdmsg,"%s", "GATNX"); // Coins entered gate, but did not exit.
-								break;
-							}
-							case 0x31:
-							{
-								sprintf((char*)tmpdmsg,"%s", "GATALM");
-								break;
-							}
-							case 0x40:
-							{
-								sprintf((char*)tmpdmsg,"%s", "GATND");
-								break;
-							}
-							case 0x50:
-							{
-								sprintf((char*)tmpdmsg,"%s", "GATSENS");
-								break;
-							}
-						}
-					}
-					break;
-					case 0x13: // Separator module error
-					{
-						switch (TMP[i + 1])
-						{
-							case 0x00:
-							{
-								sprintf((char*)tmpdmsg,"%s", "SEPERR"); // 10 Sort sensor error. The acceptor detects an error in the sorting sensor.
-								break;
-							}
-							case 0x10:
-							{
-								sprintf((char*)tmpdmsg,"%s", "SEPSENS");
-								break;
-							}
-						}
-					}
-					break;
-					case 0x14:
-					{
-						switch (TMP[i + 1])
-						{
-							case 0x00:
-							{
-								sprintf((char*)tmpdmsg,"%s", "DISPERR");
-								break;
-							}
-						}
-					}
-					break;
-					case 0x15: // Coin Cassette / tube module error
-					{
-						switch (TMP[i + 1])
-						{
-							case 0x00:
-							{
-								sprintf((char*)tmpdmsg,"%s", "CASERR");
-								break;
-							}
-							case 0x02:
-							{
-								sprintf((char*)tmpdmsg,"%s", "CASRMD"); // 02 Cassette removed.
-								break;
-							}
-							case 0x03:
-							{
-								sprintf((char*)tmpdmsg,"%s", "CASSENS");
-								break;
-							}
-							case 0x04:
-							{
-								sprintf((char*)tmpdmsg,"%s", "CASLIT");
-								break;
-							}
-						}
-					}
-					break;
-				}
-				i++;
-				if (!suppress)
-				{
-					EXT_UART_Transmit_S("CC*DIAG*");
-					EXT_UART_Transmit(tmpdmsg);
-					EXT_CRLF();
-				}
+				ProcessCCDiagPair(TMP[i], TMP[i + 1]);
 			}
-		} else
+		}
+		else if (MDB_RESPONSE_TYPE == MDB_RESP_DATA)
 		{
-			EXT_UART_Transmit_S("CC*DIAG*NACK");
-			EXT_CRLF();
+			EXT_UART_Transmit_HEXDUMP("CC*DIAG*BADDATA", MDB_BUFFER, MDB_BUFFER_COUNT);
+		}
+		else
+		{
+			EXT_UART_UNK();
 		}
 	} else
 	{
