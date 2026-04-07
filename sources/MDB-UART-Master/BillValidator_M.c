@@ -453,24 +453,22 @@ void GetBVDispenserStatus()
 			BillValidatorDevice.OfflinePollsCount = 10;
 			uint16_t fullflags  = MDB_BUFFER[0];
 			fullflags = (fullflags << 8) | MDB_BUFFER[1];
-			for (int i = 2; i < MDB_BUFFER_COUNT; i++)
+			for (int i = 2; i + 1 < MDB_BUFFER_COUNT; i += 2)
 			{
 				uint8_t tmpstr[64];
-				uint16_t billtypecount = MDB_BUFFER[i];
-				billtypecount = (billtypecount << 8) | MDB_BUFFER[i + 1];
+				uint16_t billtypecount = (MDB_BUFFER[i] << 8) | MDB_BUFFER[i + 1];
 				uint8_t billtype = (i - 2) / 2;
 				uint8_t buff[6 + BillValidatorSetupData.DecimalPlaces];
 				double billvalue = BillValidatorSetupData.BillScalingFactor * (BillValidatorSetupData.BillTypeCredit[billtype] / pow(10, BillValidatorSetupData.DecimalPlaces));
 				dtostrf(billvalue,0,BillValidatorSetupData.DecimalPlaces,(char*)buff);
-				XXXX_sprintf_FSTR((char*)tmpstr,"BV*DSTATUS*%d*%s*%d*%d", billtype + 1, buff, billtypecount, fullflags & (1 << ((i - 2))/2));
+				XXXX_sprintf_FSTR((char*)tmpstr,"BV*DSTATUS*%d*%s*%d*%d", billtype + 1, buff, billtypecount, fullflags & (1 << billtype));
 				if (billtypecount == 0 &&
-				((fullflags & (1 << ((i - 2)/2))) == 1))
+				((fullflags & (1 << billtype)) == 1))
 				{
 					EXT_UART_Transmit_S("*ERR");
 				}
 				EXT_UART_Transmit_S((char*)tmpstr);
 				EXT_CRLF();
-				i++;
 			}
 		}
 		} else {
