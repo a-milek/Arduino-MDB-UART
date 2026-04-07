@@ -762,7 +762,7 @@ void GetBillValidatorSetupData()
 			BillValidatorSetupData.BillScalingFactor = MDB_BUFFER[3];
 			BillValidatorSetupData.BillScalingFactor = (BillValidatorSetupData.BillScalingFactor << 8) | MDB_BUFFER[4];
 			BillValidatorSetupData.DecimalPlaces = MDB_BUFFER[5];
-			BillValidatorSetupData.StackerCapacity = (MDB_BUFFER[6] << MDB_BUFFER[7]) | MDB_BUFFER[7];
+			BillValidatorSetupData.StackerCapacity = (MDB_BUFFER[6] << 8) | MDB_BUFFER[7];
 			uint16_t tmpcr  = MDB_BUFFER[8];
 			tmpcr = (tmpcr << 8) | MDB_BUFFER[9];
 			for (int i = 0; i < 16; i++)
