@@ -173,16 +173,70 @@ All responses are ASCII, `*`-delimited, terminated with `\r\n`.
 | `DIAG:<prefix>:<hex>` | Hex dump (e.g. `DIAG:MDBSEND:0cffffffff08`) |
 | `WMDIAG*<msg>` | Internal debug markers |
 
-## Typical Traffic Example
+## Typical Startup Sequence
 
-Captured from a live system with a coin changer (CC), bill validator (BV), and cashless reader (CD1):
+Captured from a live system (firmware 1.2.2) with:
+- Coin changer: MEI CF7400MDB, feature level 3
+- Bill validator: ITL NV1 REV 3-29, feature level 1
+- Cashless reader 1: feature level 2
+- Currency: PLN (ISO 4217 code 1985)
 
 ```
-SYS*MDBSTART*1.2.1                          <- startup
+SYS*MDBSTART*1.2.2                          <- startup banner with version
 
-DIAG:DIAGST:0300                             <- CC diagnostic poll
-CC*DIAG*OK                                   <- coin changer healthy
+SYS*VMCSET*READ*OK                          <- EEPROM settings loaded
+SYS*CDSET*READ*OK
+SYS*CCSET*READ*OK
+SYS*BVSET*READ*OK
+SYS*CHSET*READ*OK
 
+CD1*RESET*OK                                <- cashless reader 1 reset
+CD2*RESET*FAIL                              <- cashless reader 2 not connected
+
+CD1*CFG1*2*1985*1*2*40*1*0*1*1              <- CD1 config: FL2, PLN, scale=1, dp=2
+
+CC*STATUS*JUSTRESET                         <- coin changer reports JUSTRESET on first poll
+CC*CFG*3*1985*0.10                          <- CC setup: FL3, PLN, min value 0.10
+CC*COINSUP*1*0.10*1*1                       <- supported coins with accept/dispense flags
+CC*COINSUP*2*0.20*1*1
+CC*COINSUP*3*0.50*1*1
+CC*COINSUP*4*1.00*1*1
+CC*COINSUP*5*2.00*1*1
+
+CC*ID*MEI*4599GF12078 *CF7400MDB   *127*1*1*1*0  <- CC identification
+
+CC*TUBE*1*0.10*0*0                          <- tube status: tube 4 has 31 coins
+CC*TUBE*2*0.20*0*0
+CC*TUBE*3*0.50*0*0
+CC*TUBE*4*1.00*31*0
+CC*TUBE*5*2.00*1*0
+CC*TUBE*6*5.00*0*0
+CC*TUBESTATREQ*OK
+
+BV*STATUS*DISABLED                          <- BV initial state
+BV*STATUS*JUSTRESET                         <- BV reports JUSTRESET
+BV*CFG*1*1985*1.00*2*300*1                  <- BV setup: FL1, PLN, scale=1.00, dp=2, stacker=300, escrow=yes
+BV*ID*ITL*0000001F82A4*NV1 REV 3-29*111*0*0  <- BV identification
+BV*BILLSUP*1*10.00*0*1*1*1*1*1             <- supported bills with feature flags
+BV*BILLSUP*2*20.00*0*1*1*1*1*1
+BV*BILLSUP*3*50.00*0*1*1*1*1*1
+BV*BILLSUP*4*100.00*0*1*1*1*1*1
+BV*BILLSUP*5*200.00*0*1*1*1*1*1
+
+BV*STACKER*0*0                              <- stacker: 0 bills, not full
+
+SYS*DEVONLINE*CC                            <- devices online
+SYS*DEVONLINE*BV
+
+DIAG:DIAGST:0300                            <- periodic CC diagnostics begin
+CC*DIAG*OK
+```
+
+## Typical Runtime Traffic
+
+Captured during normal operation with a cashless vend cycle and coin deposit:
+
+```
 CD1*EDC*OK                                   <- cashless reader enabled
 DIAG:MDBSEND:0c000000000c
 CC*DISABLE*OK                                <- coins disabled (vend session)
@@ -196,7 +250,7 @@ CC*ENABLE*OK                                 <- coins re-enabled
 DIAG:MDBSEND:34ffffffff30
 BV*ENABLE*OK                                 <- bills re-enabled
 
-CC*TUBE*1*0.10*0*0                           <- tube status poll
+CC*TUBE*1*0.10*0*0                           <- periodic tube status poll
 CC*TUBE*2*0.20*0*0
 CC*TUBE*3*0.50*0*0
 CC*TUBE*4*1.00*31*0                          <- 31 coins of 1.00 in tube 4
@@ -236,8 +290,13 @@ CC*DIAG*OK
 
 ### Typical Cycle Pattern
 
-1. **Idle**: CC diagnostic polls every ~37 cycles, tube status every ~666 cycles
-2. **Vend session**: CC+BV disabled -> cashless session -> CC+BV re-enabled
-3. **Coin deposit**: `CC*DEPOSIT` with coin type, value, routing, tube count
-4. **Cash sale**: `CD*CSHSALE` with MDB send showing price bytes
-5. **Status polling**: All devices polled continuously; offline devices decrement `OfflinePollsCount`
+1. **Startup**: EEPROM settings loaded, devices reset, SETUP/ID queries, JUSTRESET handling
+2. **Idle**: CC diagnostic polls every ~37 cycles, tube status every ~666 cycles
+3. **Vend session**: CC+BV disabled -> cashless session -> CC+BV re-enabled
+4. **Coin deposit**: `CC*DEPOSIT` with coin type, value, routing, tube count
+5. **Cash sale**: `CD*CSHSALE` with MDB send showing price bytes
+6. **Status polling**: All devices polled continuously; offline devices decrement `OfflinePollsCount`
+
+### Notes
+
+- `CC*COINSUP` only lists coin types that are **routeable to tubes** (per SETUP response Z6-Z7 routing bits). A coin type may still appear in `CC*TUBE` with a value and 0 count if the changer knows the denomination but has no physical tube for it (e.g. 5.00 PLN goes to cashbox only).
