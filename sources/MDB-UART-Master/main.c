@@ -28,7 +28,7 @@
 
 uint16_t IntCycles = 0;
 
-uint8_t Version[] = "1.2.1";
+char Version[] = "1.2.1";
 
 void Setup() {
 	MDB_Setup();
@@ -36,7 +36,7 @@ void Setup() {
 	EXT_CRLF();
 	EXT_CRLF();
 	EXT_UART_Transmit_S("SYS*MDBSTART*");
-	EXT_UART_Transmit_S((char*)Version);
+	EXT_UART_Transmit_S(Version);
 	EXT_CRLF();
 	//wait a bit for slaves initialization
 	delay_1ms(1000);

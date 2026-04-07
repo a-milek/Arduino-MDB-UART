@@ -25,13 +25,13 @@
 
 void MDBDebug()
 {
-	unsigned char buff[32];
-	XXXX_sprintf_FSTR((char*)buff, "Bytes count: %d, content: ", MDB_BUFFER_COUNT);
-	EXT_UART_Transmit_S((char*)buff);
+	char buff[32];
+	XXXX_sprintf_FSTR(buff, "Bytes count: %d, content: ", MDB_BUFFER_COUNT);
+	EXT_UART_Transmit_S(buff);
 	for (int a = 0; a < MDB_BUFFER_COUNT; a++)
 	{
-		XXXX_sprintf_FSTR((char*)buff, "%02x ", MDB_BUFFER[a]);
-		EXT_UART_Transmit_S((char*)buff);
+		XXXX_sprintf_FSTR(buff, "%02x ", MDB_BUFFER[a]);
+		EXT_UART_Transmit_S(buff);
 	}
 	EXT_CRLF();
 }
@@ -144,12 +144,12 @@ void PollReader(uint8_t index)
 
 void DebugMDBMessage()
 {
-	uint8_t buff[20];
-	XXXX_sprintf_FSTR((char*)buff, "Bytes: %d\r\nHEX:", MDB_BUFFER_COUNT);
-	EXT_UART_Transmit_S((char*)buff);
+	char buff[20];
+	XXXX_sprintf_FSTR(buff, "Bytes: %d\r\nHEX:", MDB_BUFFER_COUNT);
+	EXT_UART_Transmit_S(buff);
 	for (int a = 0; a < MDB_BUFFER_COUNT; a++){
-	XXXX_sprintf_FSTR((char*)buff, " %02x", MDB_BUFFER[a]);
-	EXT_UART_Transmit_S((char*)buff);
+	XXXX_sprintf_FSTR(buff, " %02x", MDB_BUFFER[a]);
+	EXT_UART_Transmit_S(buff);
 	}
 	EXT_CRLF();
 }
