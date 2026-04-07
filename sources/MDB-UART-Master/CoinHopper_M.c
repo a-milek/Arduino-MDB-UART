@@ -72,18 +72,18 @@ void GetCoinHopperSetupData(uint8_t index)
 				CoinHopperSetupData[index].CoinTypeCredit[i - 7] = MDB_BUFFER[i];
 			}
 			char tmpstr[80];
-			uint8_t mcvbuff[5 + CoinHopperSetupData[index].DecimalPlaces];
+			char mcvbuff[5 + CoinHopperSetupData[index].DecimalPlaces];
 			double mindispvalue = CoinHopperSetupData[index].CoinScalingFactor / pow(10, CoinHopperSetupData[index].DecimalPlaces);
-			dtostrf(mindispvalue,0,CoinHopperSetupData[index].DecimalPlaces,(char*)mcvbuff);
+			dtostrf(mindispvalue,0,CoinHopperSetupData[index].DecimalPlaces,mcvbuff);
 			XXXX_sprintf_FSTR((char*)tmpstr,"CH%d*CFG*%d*%d*%s", index + 1, CoinHopperSetupData[index].DispenserFeatureLevel, CoinHopperSetupData[index].CountryOrCurrencyCode, mcvbuff);
 			EXT_UART_Transmit_S(tmpstr);
 			EXT_CRLF();
 			for (int i = 0; i < 16; i++)
 			{
-				uint8_t cvbuff[10 + CoinHopperSetupData[index].DecimalPlaces];
+				char cvbuff[10 + CoinHopperSetupData[index].DecimalPlaces];
 				uint8_t buff[18 + sizeof(cvbuff)];
 				double coinvalue = (CoinHopperSetupData[index].CoinScalingFactor * CoinHopperSetupData[index].CoinTypeCredit[i]) / pow(10, CoinHopperSetupData[index].DecimalPlaces);
-				dtostrf(coinvalue,0,CoinHopperSetupData[index].DecimalPlaces,(char*)cvbuff);
+				dtostrf(coinvalue,0,CoinHopperSetupData[index].DecimalPlaces,cvbuff);
 				XXXX_sprintf_FSTR((char*)buff,"CH%d*COINSUP*%d*%s*%d*%d", index + 1, i + 1,cvbuff, (CoinHopperSetupData[index].DisabledCoinTypes[i] == 0x00), CoinHopperSetupData[index].CoinSelfFilling[i]);
 				EXT_UART_Transmit_S((char*)buff);
 				EXT_CRLF();
@@ -130,9 +130,9 @@ void GetCoinHopperDispenserStatus(uint8_t index)
 				if (CoinHopperSetupData[index].DisabledCoinTypes[(i - 2) / 2] == 0)
 				{
 					uint8_t tmpstr[70];
-					uint8_t buff[5 + CoinHopperSetupData[index].DecimalPlaces];
+					char buff[5 + CoinHopperSetupData[index].DecimalPlaces];
 					double coinvalue = (CoinHopperSetupData[index].CoinScalingFactor * CoinHopperSetupData[index].CoinTypeCredit[i]) / pow(10, CoinHopperSetupData[index].DecimalPlaces);
-					dtostrf(coinvalue,0,CoinHopperSetupData[index].DecimalPlaces,(char*)buff);
+					dtostrf(coinvalue,0,CoinHopperSetupData[index].DecimalPlaces,buff);
 					uint16_t coinsqty = MDB_BUFFER[i];
 					coinsqty = (coinsqty << 8) | MDB_BUFFER[i + 1];
 					XXXX_sprintf_FSTR((char*)tmpstr,"CH%d*FILL*%s*%d*%d", index + 1, buff, coinsqty, fullflags & (1 << ((i - 2) / 2)));
@@ -171,9 +171,9 @@ void CoinHopperPollResponse(uint8_t index)
 			uint8_t dispres[8];
 			if ((TMP[i] & (1 << 4)) != 0) sprintf((char*)dispmode, "%s", "MANUAL"); else sprintf((char*)dispmode, "%s", "AUTO");
 			if ((TMP[i] & (1 << 5)) != 0) sprintf((char*)dispres, "%s", "OK"); else sprintf((char*)dispres, "%s", "FAIL");
-			uint8_t buff[5 + CoinHopperSetupData[index].DecimalPlaces];
+			char buff[5 + CoinHopperSetupData[index].DecimalPlaces];
 			double coinvalue = (CoinHopperSetupData[index].CoinScalingFactor * CoinHopperSetupData[index].CoinTypeCredit[TMP[i] & 0x0f]) / pow(10, CoinHopperSetupData[index].DecimalPlaces);
-			dtostrf(coinvalue,0,CoinHopperSetupData[index].DecimalPlaces,(char*)buff);
+			dtostrf(coinvalue,0,CoinHopperSetupData[index].DecimalPlaces,buff);
 			uint16_t coinsqty = TMP[i + 1];
 			coinsqty = (coinsqty << 8) | TMP[i + 2];
 			uint16_t coinsleft = TMP[i + 3];
@@ -259,9 +259,9 @@ void CoinHopperEnableManualDispenseCoinType(uint8_t index, uint8_t CoinType, uin
 	CoinHopperOptions[index].EnableManualDispenseCoinsBits = (EnableManualDispense == 1) ? (CoinHopperOptions[index].EnableManualDispenseCoinsBits | (1 << (CoinType - 1))) : (CoinHopperOptions[index].EnableManualDispenseCoinsBits & ~(1 << (CoinType - 1)));
 	WriteCoinHoppersOptions();
 	uint8_t buff[25 + CoinHopperSetupData[index].DecimalPlaces];
-	uint8_t cvbuff[5 + CoinHopperSetupData[index].DecimalPlaces];
+	char cvbuff[5 + CoinHopperSetupData[index].DecimalPlaces];
 	double coinvalue = (CoinHopperSetupData[index].CoinScalingFactor * CoinHopperSetupData[index].CoinTypeCredit[CoinType - 1]) / pow(10, CoinHopperSetupData[index].DecimalPlaces);
-	dtostrf(coinvalue,0,CoinHopperSetupData[index].DecimalPlaces,(char*)cvbuff);
+	dtostrf(coinvalue,0,CoinHopperSetupData[index].DecimalPlaces,cvbuff);
 	XXXX_sprintf_FSTR((char*)buff,"CH%d*COINCFG*%d*%s*%d*", index + 1, CoinType, cvbuff, (EnableManualDispense == 1));
 	EXT_UART_Transmit(buff);
 	EXT_UART_OK();
@@ -411,15 +411,15 @@ void CoinHopperPayoutStatus(uint8_t index)
 				{
 					XXXX_sprintf_FSTR((char*)tmpstr,"CH%d*PAYSTATUS*%d*", index + 1, (i / 2) + 1);
 					EXT_UART_Transmit_S(tmpstr);
-					uint8_t buff[5 + CoinHopperSetupData[index].DecimalPlaces];
+					char buff[5 + CoinHopperSetupData[index].DecimalPlaces];
 					double coinvalue = (CoinHopperSetupData[index].CoinScalingFactor * CoinHopperSetupData[index].CoinTypeCredit[i / 2]) / pow(10, CoinHopperSetupData[index].DecimalPlaces);
-					dtostrf(coinvalue,0,CoinHopperSetupData[index].DecimalPlaces,(char*)buff);
+					dtostrf(coinvalue,0,CoinHopperSetupData[index].DecimalPlaces,buff);
 					sprintf(tmpstr,"*%s", buff);
 					EXT_UART_Transmit_S(tmpstr);
 					uint16_t coinsqty = MDB_BUFFER[i];
 					coinsqty = (coinsqty << 8) | MDB_BUFFER[i + 1];
-					sprintf((char*)buff,"*%d", coinsqty);
-					EXT_UART_Transmit(buff);
+					sprintf(buff,"*%d", coinsqty);
+					EXT_UART_Transmit_S(buff);
 					EXT_CRLF();
 					i++;
 				}
@@ -465,9 +465,9 @@ void GetCoinHopperPayoutValue(uint8_t index)
 			CHLED_ON(index);
 			uint16_t paidvalue = MDB_BUFFER[0];
 			paidvalue = (paidvalue << 8) | MDB_BUFFER[1];
-			uint8_t buff[5 + CoinHopperSetupData[index].DecimalPlaces];
+			char buff[5 + CoinHopperSetupData[index].DecimalPlaces];
 			double cpvalue = paidvalue / pow(10, CoinHopperSetupData[index].DecimalPlaces);
-			dtostrf(cpvalue,0,CoinHopperSetupData[index].DecimalPlaces,(char*)buff);
+			dtostrf(cpvalue,0,CoinHopperSetupData[index].DecimalPlaces,buff);
 			sprintf(tmpstr,"CH%d*PAID*%s", index + 1, buff);
 			EXT_UART_Transmit_S(tmpstr);
 			EXT_CRLF();

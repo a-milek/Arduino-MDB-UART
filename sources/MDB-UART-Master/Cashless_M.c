@@ -448,7 +448,7 @@ void ProcessReaderConfig(uint8_t index, uint8_t startindex)
 
 void ProcessReaderVendApproved(uint8_t index, const uint8_t vendappdata[], size_t vendappdata_size)
 {
-	uint8_t buff[10 + ReaderSetupData[index].DecimalPlaces];
+	char buff[10 + ReaderSetupData[index].DecimalPlaces];
 	uint8_t tmpstr[32];
 	uint32_t availablefundsdata;
 	if (vendappdata_size == 5)
@@ -462,7 +462,7 @@ void ProcessReaderVendApproved(uint8_t index, const uint8_t vendappdata[], size_
 	else{
 		availablefundsdata=0xFFFFFF; //FIXME!
 	}
-	dtostrf(availablefundsdata / pow(10, ReaderSetupData[index].DecimalPlaces),0,ReaderSetupData[index].DecimalPlaces,(char*)buff);
+	dtostrf(availablefundsdata / pow(10, ReaderSetupData[index].DecimalPlaces),0,ReaderSetupData[index].DecimalPlaces,buff);
 	XXXX_sprintf_FSTR((char*)tmpstr,"CD%d*VAPPR*%s", index + 1, buff);
 	EXT_UART_Transmit_S((char*)tmpstr);
 	EXT_CRLF();
@@ -472,7 +472,7 @@ void ProcessReaderVendApproved(uint8_t index, const uint8_t vendappdata[], size_
 
 void ProcessReaderSessionBegin(uint8_t index, const uint8_t sbdata[], size_t sbsize)
 {
-	uint8_t buff[10 + ReaderSetupData[index].DecimalPlaces];
+	char buff[10 + ReaderSetupData[index].DecimalPlaces];
 	uint8_t tmpstr[32];
 	unsigned long availablefundsdata;
 	
@@ -491,7 +491,7 @@ void ProcessReaderSessionBegin(uint8_t index, const uint8_t sbdata[], size_t sbs
 		{
 			uint32_t availablefundsdata = (uint32_t)sbdata[1] << 24 | ((uint32_t)sbdata[2] << 16) | ((uint32_t)sbdata[3] << 8) | ((uint32_t)sbdata[4]);
 			
-			dtostrf(availablefundsdata / pow(10, ReaderSetupData[index].DecimalPlaces),0,ReaderSetupData[index].DecimalPlaces,(char*)buff);
+			dtostrf(availablefundsdata / pow(10, ReaderSetupData[index].DecimalPlaces),0,ReaderSetupData[index].DecimalPlaces,buff);
 			uint8_t paymentmediaid[9];
 			uint8_t paymenttype[16];
 			switch (sbdata[9] >> 6)
@@ -540,7 +540,7 @@ void ProcessReaderSessionBegin(uint8_t index, const uint8_t sbdata[], size_t sbs
 		{
 			availablefundsdata = sbdata[1] << 8;
 			availablefundsdata |= sbdata[2];
-			dtostrf(availablefundsdata / pow(10, ReaderSetupData[index].DecimalPlaces),0,ReaderSetupData[index].DecimalPlaces,(char*)buff);
+			dtostrf(availablefundsdata / pow(10, ReaderSetupData[index].DecimalPlaces),0,ReaderSetupData[index].DecimalPlaces,buff);
 			uint8_t paymentmediaid[9];
 			
 			paymentmediaid[0] = sbdata[Z4 - 1];
@@ -591,7 +591,7 @@ void ProcessReaderSessionBegin(uint8_t index, const uint8_t sbdata[], size_t sbs
 		{
 			availablefundsdata = sbdata[1] << 8;
 			availablefundsdata |= sbdata[2];
-			dtostrf(availablefundsdata / pow(10, ReaderSetupData[index].DecimalPlaces),0,ReaderSetupData[index].DecimalPlaces,(char*)buff);
+			dtostrf(availablefundsdata / pow(10, ReaderSetupData[index].DecimalPlaces),0,ReaderSetupData[index].DecimalPlaces,buff);
 			XXXX_sprintf_FSTR((char*)tmpstr,"CD%d*SBEGIN*%s", index + 1, buff);
 			EXT_UART_Transmit_S((char*)tmpstr);
 			EXT_CRLF();
@@ -673,7 +673,7 @@ void ProcessReaderRevalueLimit(uint8_t index, const uint8_t rlimdata[], size_t r
 {
 	uint32_t availablefundsdata;
 	uint8_t tmpstr[32];
-	uint8_t buff[10];
+	char buff[10];
 	if (rlimdata_size == 5)
 	{
 		availablefundsdata = (uint32_t)rlimdata[1] << 24 | ((uint32_t)rlimdata[2] << 16) | ((uint32_t)rlimdata[3] << 8) | ((uint32_t)rlimdata[4]);
@@ -685,7 +685,7 @@ void ProcessReaderRevalueLimit(uint8_t index, const uint8_t rlimdata[], size_t r
 	else{
 		availablefundsdata=0xFFFFFFF; //FIXME!
 	}
-	dtostrf(availablefundsdata / pow(10, ReaderSetupData[index].DecimalPlaces),0,ReaderSetupData[index].DecimalPlaces,(char*)buff);
+	dtostrf(availablefundsdata / pow(10, ReaderSetupData[index].DecimalPlaces),0,ReaderSetupData[index].DecimalPlaces,buff);
 	XXXX_sprintf_FSTR((char*)tmpstr,"CD%d*REVLIMIT*%s", index + 1, buff);
 	EXT_UART_Transmit_S((char*)tmpstr);
 	EXT_CRLF();
