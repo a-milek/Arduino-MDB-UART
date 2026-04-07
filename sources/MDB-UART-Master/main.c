@@ -45,7 +45,7 @@ void Setup() {
 uint16_t BCDByteToInt(uint8_t* BCDBytes, size_t BCDBytes_size)
 {
 	int res = 0;
-	for (int i = 0; i < sizeof(BCDBytes)/sizeof(uint8_t); i++)
+	for (size_t i = 0; i < BCDBytes_size; i++)
 	{
 		res *= 100;
 		res += (10 * (BCDBytes[i] >> 4));
