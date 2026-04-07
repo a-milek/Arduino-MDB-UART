@@ -5,7 +5,8 @@
  *  Author: root
  */ 
 #include "config.h"
-#include <stdlib.h> 
+#include <stdlib.h>
+#include <stdbool.h>
 #include <avr/io.h>
 #include <util/delay.h>
 #include <stdio.h>
@@ -852,9 +853,9 @@ void GetBillValidatorStackerStatus()
 			MDB_ACK();
 			BillValidatorDevice.OfflinePollsCount = 10;
 			uint8_t tmpstr[32];
-			uint8_t full = ((MDB_BUFFER[0] & 0x80) == 1);
+			bool full = (MDB_BUFFER[0] & 0x80) != 0;
 			uint16_t billnumber = ((MDB_BUFFER[0] & 0x7F) << 8) | MDB_BUFFER[1];
-			XXXX_sprintf_FSTR((char*)tmpstr,"BV*STACKER*%d*%d", billnumber, full);
+			XXXX_sprintf_FSTR((char*)tmpstr,"BV*STACKER*%d*%d", billnumber, (int)full);
 			EXT_UART_Transmit_S((char*)tmpstr);
 			EXT_CRLF();
 			if (full)
