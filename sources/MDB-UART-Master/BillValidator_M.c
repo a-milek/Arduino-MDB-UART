@@ -454,7 +454,7 @@ void GetBVDispenserStatus()
 			BillValidatorDevice.OfflinePollsCount = 10;
 			uint16_t fullflags  = MDB_BUFFER[0];
 			fullflags = (fullflags << 8) | MDB_BUFFER[1];
-			for (int i = 2; i + 1 < MDB_BUFFER_COUNT; i += 2)
+			for (size_t i = 2; i + 1 < MDB_BUFFER_COUNT; i += 2)
 			{
 				uint8_t tmpstr[64];
 				uint16_t billtypecount = (MDB_BUFFER[i] << 8) | MDB_BUFFER[i + 1];
@@ -598,22 +598,20 @@ void BillValidatorPayoutStatus()
 				MDB_ACK();
 				BillValidatorDevice.OfflinePollsCount = 10;
 				//uint8_t * buff[6];
-				for (int i = 0; i < MDB_BUFFER_COUNT; i++)
+				for (size_t i = 2; i + 1 < MDB_BUFFER_COUNT; i += 2)
 				{
-					if (MDB_BUFFER[i] > 0)
+					uint16_t billtypecount = (MDB_BUFFER[i] << 8) | MDB_BUFFER[i + 1];
+					if (billtypecount > 0)
 					{
 						uint8_t tmpstr[64];
-						uint16_t billtypecount = MDB_BUFFER[i];
-						billtypecount = (billtypecount << 8) | MDB_BUFFER[i + 1];
 						uint8_t billtype = (i - 2) / 2;
 						char buff[6 + BillValidatorSetupData.DecimalPlaces];
 						double billvalue = BillValidatorSetupData.BillScalingFactor * (BillValidatorSetupData.BillTypeCredit[billtype] / pow(10, BillValidatorSetupData.DecimalPlaces));
 						dtostrf(billvalue,0,BillValidatorSetupData.DecimalPlaces,buff);
-						XXXX_sprintf_FSTR((char*)tmpstr,"BV*DPS*%d*%s*%d", billtype +1, buff, billtypecount);
+						XXXX_sprintf_FSTR((char*)tmpstr,"BV*DPS*%d*%s*%d", billtype + 1, buff, billtypecount);
 						EXT_UART_Transmit_S((char*)tmpstr);
 						EXT_CRLF();
 					}
-					i++;
 				}
 				GetBVDispenserStatus();
 			} else
