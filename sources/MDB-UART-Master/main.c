@@ -28,7 +28,7 @@
 
 uint16_t IntCycles = 0;
 
-char Version[] = "1.2.2";
+char Version[] = "1.2.3";
 
 void Setup() {
 	MDB_Setup();

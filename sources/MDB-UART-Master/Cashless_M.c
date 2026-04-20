@@ -363,8 +363,9 @@ void ProcessReaderExpID(uint8_t index, const uint8_t expiddata[], size_t expidda
 		
 	if (1) {
 		char tmpstr[32];
-		sprintf(tmpstr,"WMDIAG*:%d", expiddata_count);
+		sprintf(tmpstr,"DIAG:EXPID:cnt:%d", expiddata_count);
 		EXT_UART_Transmit_S(tmpstr);
+		EXT_CRLF();
 		EXT_UART_Transmit_HEXDUMP("EXPID", expiddata, expiddata_count);
 	}
 
@@ -479,8 +480,9 @@ void ProcessReaderSessionBegin(uint8_t index, const uint8_t sbdata[], size_t sbs
 	
 	if (1) {
 		char tmpdbgstr[32];
-		sprintf(tmpdbgstr,"WMDIAG:sbsize:%d", sbsize);
+		sprintf(tmpdbgstr,"DIAG:sbsize:%d", sbsize);
 		EXT_UART_Transmit_S(tmpdbgstr);
+		EXT_CRLF();
 		EXT_UART_Transmit_HEXDUMP("SBDATA", sbdata, sbsize);
 	}
 
@@ -707,7 +709,7 @@ void ReaderResponse(uint8_t index)
 	{
 		if (1) {
 			// WM: b'DIAG:RPR:0307d0da\r\n' - checksum hex(0x03 + 0x07 + 0xd0) = 0xda
-			XXXX_sprintf_FSTR(tmpstr,"WMDIAG:CD%d*RR:i:%d/%d", index + 1, i, MDB_BUFFER_COUNT);
+			XXXX_sprintf_FSTR(tmpstr,"DIAG:CD%d*RR:i:%d/%d", index + 1, i, MDB_BUFFER_COUNT);
 			EXT_UART_Transmit_S(tmpstr);
 			EXT_CRLF();
 		}
@@ -741,7 +743,7 @@ void ReaderResponse(uint8_t index)
 			return;
 			case 0x03: // BEGIN SESSION (level 01 readers)
 			
-					XXXX_sprintf_FSTR(tmpstr,"WMDIAG:CD%d*BS", index + 1);
+					XXXX_sprintf_FSTR(tmpstr,"DIAG:CD%d*BS", index + 1);
 					EXT_UART_Transmit_S(tmpstr);
 					EXT_CRLF();
 			
@@ -969,7 +971,7 @@ void ReaderVendRequest(uint8_t index, double price, uint16_t itemnumber)
 		cmd[4] = (tmpprice >> 8) & 0xff;
 		cmd[5] = (tmpprice >> 0 ) & 0xff; // Y5
 		cmd[6] = (itemnumber >> 8) & 0xff;
-		cmd[7] = (itemnumber >> 8) & 0xff; // Y7
+		cmd[7] = (itemnumber >> 0) & 0xff; // Y7
 		cmd[8] = 0; // Bytes intentionally skipped/excluded - can be set to 00h
 		cmd[9] = 0; // Bytes intentionally skipped/excluded - can be set to 00h
 		cmd[10] = 0; // Bytes intentionally skipped/excluded - can be set to 00h
@@ -1105,7 +1107,7 @@ void ReaderCashSale(uint8_t index, double price, uint16_t itemnumber)
 	
 		if (1) {
 			char tmpstr[32];
-			sprintf(tmpstr,"WMDIAG*:%d:%d", ReaderSetupData[index].DecimalPlaces, ReaderSetupData[index].ScalingFactor);
+			sprintf(tmpstr,"DIAG:scale:%d:%d", ReaderSetupData[index].DecimalPlaces, ReaderSetupData[index].ScalingFactor);
 			EXT_UART_Transmit_S(tmpstr);
 			EXT_CRLF();
 		}
@@ -1311,23 +1313,23 @@ void ReaderWriteDateTime(uint8_t index, uint8_t BCDDateTimeData[10])
 
 void ReaderProcessResponse(uint8_t index, const char *contextdesc, uint8_t resp[])
 {
-	char tmpstr[32];
+	char tmpstr[48];
 	//uint8_t * buff[6];
 	
 	
-	//XXXX_sprintf_FSTR((char*)tmpstr,"WMDIAG1:CD%d:cmp:%d:errf:%d", index + 1, MDBReceiveComplete, MDBReceiveErrorFlag);
+	//XXXX_sprintf_FSTR((char*)tmpstr,"DIAG1:CD%d:cmp:%d:errf:%d", index + 1, MDBReceiveComplete, MDBReceiveErrorFlag);
 	//EXT_UART_Transmit_S((char*)tmpstr);
 	
 	while (!MDBReceiveComplete){
 		MDB_read();
 	}
 	
-	//XXXX_sprintf_FSTR((char*)tmpstr,"WMDIAG2:CD%d:cmp:%d:errf:%d", index + 1, MDBReceiveComplete, MDBReceiveErrorFlag);
+	//XXXX_sprintf_FSTR((char*)tmpstr,"DIAG2:CD%d:cmp:%d:errf:%d", index + 1, MDBReceiveComplete, MDBReceiveErrorFlag);
 	//EXT_UART_Transmit_S((char*)tmpstr);
 
 	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
 	{
-			//XXXX_sprintf_FSTR((char*)tmpstr,"WMDIAG:CD%d*OK*", index + 1);
+			//XXXX_sprintf_FSTR((char*)tmpstr,"DIAG:CD%d*OK*", index + 1);
 			//EXT_UART_Transmit_S((char*)tmpstr);
 			
 		if (MDB_BUFFER_COUNT > 0)
@@ -1365,11 +1367,13 @@ void ReaderProcessResponse(uint8_t index, const char *contextdesc, uint8_t resp[
 			EXT_UART_FAIL();
 			CDLED_OFF(index);
 
-				XXXX_sprintf_FSTR(tmpstr,"CD%d*MDBReceiveComplete:%d", index + 1, MDBReceiveComplete);
+				XXXX_sprintf_FSTR(tmpstr,"DIAG:CD%d*MDBReceiveComplete:%d", index + 1, MDBReceiveComplete);
 				EXT_UART_Transmit_S(tmpstr);
+				EXT_CRLF();
 
-				XXXX_sprintf_FSTR(tmpstr,"CD%d*MDBReceiveErrorFlag:%d", index + 1, MDBReceiveErrorFlag);
+				XXXX_sprintf_FSTR(tmpstr,"DIAG:CD%d*MDBReceiveErrorFlag:%d", index + 1, MDBReceiveErrorFlag);
 				EXT_UART_Transmit_S(tmpstr);
+				EXT_CRLF();
 
 		}
 	}

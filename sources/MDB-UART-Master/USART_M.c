@@ -275,8 +275,8 @@ int MDB_Receive(void)
 	
 	if (0) {
 		char tmpstr[32];
-		sprintf((char*)tmpstr,"WMDIAG*rcv:%d", mdb_received_cnt);
-		sprintf((char*)tmpstr,"WMDIAG*rcx:%x", ret);
+		sprintf((char*)tmpstr,"DIAG*rcv:%d", mdb_received_cnt);
+		sprintf((char*)tmpstr,"DIAG*rcx:%x", ret);
 		EXT_UART_Transmit_S((char*)tmpstr);
 	}
     return ret;

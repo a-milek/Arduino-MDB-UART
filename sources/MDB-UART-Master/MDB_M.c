@@ -157,7 +157,7 @@ void DebugMDBMessage()
 void MDBDeviceReset(uint8_t DevAddress)
 {
 	char buf[40];
-	sprintf(buf, "WMDIAG*%#x*RESET\r\n", DevAddress);
+	sprintf(buf, "DIAG:%#x*RESET\r\n", DevAddress);
 	EXT_UART_Transmit_S(buf);
 	
 	uint8_t cmd[2] = {DevAddress, DevAddress};

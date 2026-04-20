@@ -142,11 +142,9 @@ static void extcmd_process_1coinchanger(const char *args)
 			}
 			break;
 		case 0x0a:
-			EXT_UART_Transmit_S("WMDIAG*9");
-			EXT_CRLF();
+			EXT_UART_Transmit_S("DIAG:9\r\n");
 			GetCoinChangerTubeStatus();
-			EXT_UART_Transmit_S("WMDIAG*10");
-			EXT_CRLF();
+			EXT_UART_Transmit_S("DIAG:10\r\n");
 			break;
 	}
 }
@@ -256,14 +254,14 @@ static void extcmd_process_9diagnostic(const char *args)
 		case 2:
 			// ref 7.4.1 Reset and Initialising
 			CashlessDeviceSetup(0);
-			EXT_UART_Transmit_S("WMDIAG*PRICES16");
+			EXT_UART_Transmit_S("DIAG:PRICES16\r\n");
 			CashlessDeviceSetupPrices16bit(0);
-			EXT_UART_Transmit_S("WMDIAG*EXPANSION");
+			EXT_UART_Transmit_S("DIAG:EXPANSION\r\n");
 			CashlessDeviceRequestExpansionID(0);
-			EXT_UART_Transmit_S("WMDIAG*OPT");
+			EXT_UART_Transmit_S("DIAG:OPT\r\n");
 			CashlessDeviceEnableOptFetures(0);
 			CashlessDeviceSetupPrices32bit(0);
-			EXT_UART_Transmit_S("DIAG*ENABLE");
+			EXT_UART_Transmit_S("DIAG:ENABLE\r\n");
 			ReaderEDC(0, 0x01);
 			break;
 		case 3:
