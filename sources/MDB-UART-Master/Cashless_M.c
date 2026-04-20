@@ -450,7 +450,7 @@ void ProcessReaderConfig(uint8_t index, uint8_t startindex)
 void ProcessReaderVendApproved(uint8_t index, const uint8_t vendappdata[], size_t vendappdata_size)
 {
 	char buff[10 + ReaderSetupData[index].DecimalPlaces];
-	char tmpstr[32];
+	char tmpstr[48];
 	uint32_t availablefundsdata;
 	if (vendappdata_size == 5)
 	{
@@ -474,7 +474,7 @@ void ProcessReaderVendApproved(uint8_t index, const uint8_t vendappdata[], size_
 void ProcessReaderSessionBegin(uint8_t index, const uint8_t sbdata[], size_t sbsize)
 {
 	char buff[10 + ReaderSetupData[index].DecimalPlaces];
-	char tmpstr[32];
+	char tmpstr[80];
 	unsigned long availablefundsdata;
 	
 	
@@ -674,8 +674,8 @@ void ReaderReset(uint8_t index)
 void ProcessReaderRevalueLimit(uint8_t index, const uint8_t rlimdata[], size_t rlimdata_size)
 {
 	uint32_t availablefundsdata;
-	char tmpstr[32];
-	char buff[10];
+	char tmpstr[48];
+	char buff[16];
 	if (rlimdata_size == 5)
 	{
 		availablefundsdata = (uint32_t)rlimdata[1] << 24 | ((uint32_t)rlimdata[2] << 16) | ((uint32_t)rlimdata[3] << 8) | ((uint32_t)rlimdata[4]);
