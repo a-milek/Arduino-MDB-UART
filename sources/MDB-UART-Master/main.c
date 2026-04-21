@@ -28,7 +28,7 @@
 
 uint16_t IntCycles = 0;
 
-char Version[] = "1.2.4";
+char Version[] = "1.2.5";
 
 void Setup() {
 	MDB_Setup();
@@ -38,6 +38,20 @@ void Setup() {
 	EXT_UART_Transmit_S("SYS*MDBSTART*");
 	EXT_UART_Transmit_S(Version);
 	EXT_CRLF();
+	{
+		char buf[32];
+		sprintf(buf, "DIAG:MCUID:%02x%02x%02x",
+			SIGROW.DEVICEID0, SIGROW.DEVICEID1, SIGROW.DEVICEID2);
+		EXT_UART_Transmit_S(buf);
+		EXT_CRLF();
+		sprintf(buf, "DIAG:MCUSN:%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+			SIGROW.SERNUM0, SIGROW.SERNUM1, SIGROW.SERNUM2,
+			SIGROW.SERNUM3, SIGROW.SERNUM4, SIGROW.SERNUM5,
+			SIGROW.SERNUM6, SIGROW.SERNUM7, SIGROW.SERNUM8,
+			SIGROW.SERNUM9);
+		EXT_UART_Transmit_S(buf);
+		EXT_CRLF();
+	}
 	//wait a bit for slaves initialization
 	delay_1ms(1000);
 }

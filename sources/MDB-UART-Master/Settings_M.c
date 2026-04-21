@@ -55,25 +55,101 @@ CoinChangerOptions_t EEMEM nv_CoinChangerOptions = {0xffff,0xffff,0x07};
 BillValidatorOptions_t EEMEM nv_BillValidatorOptions = {0xffff,0xffff,0x0000,0xffff,0x0000,1};
 CoinHopperOptions_t EEMEM nv_CoinHopperOptions[2] = {{0xffff},{0xffff}};
 
+static void DiagPrintVMC(void)
+{
+	char buf[96];
+	sprintf(buf, "DIAG:VMC*FL:%d*DISP:%dx%d*DTYPE:%d*MFG:%.3s*SN:%.12s*MDL:%.12s*SW:%.2s",
+		VMCData.VMC_FEATURE_LEVEL,
+		VMCData.VMC_DISPLAY_COLUMNS, VMCData.VMC_DISPLAY_ROWS,
+		VMCData.VMC_DISPLAY_TYPE,
+		VMCData.VMCMfgCode, VMCData.VMCSerialNumber,
+		VMCData.VMCModelNumber, VMCData.VMCSofwareVersion);
+	EXT_UART_Transmit_S(buf);
+	EXT_CRLF();
+}
+
+static void DiagPrintReaderOpts(uint8_t index)
+{
+	char buf[80];
+	ReaderOptions_t *r = &ReaderOptions[index];
+	sprintf(buf, "DIAG:CD%d*MAXP:%02x%02x%02x%02x*MINP:%02x%02x%02x%02x*CUR:%02x%02x",
+		index + 1,
+		r->MaxPrice.Bytes[0], r->MaxPrice.Bytes[1],
+		r->MaxPrice.Bytes[2], r->MaxPrice.Bytes[3],
+		r->MinPrice.Bytes[0], r->MinPrice.Bytes[1],
+		r->MinPrice.Bytes[2], r->MinPrice.Bytes[3],
+		r->CountryOrCurrencyCode[0], r->CountryOrCurrencyCode[1]);
+	EXT_UART_Transmit_S(buf);
+	sprintf(buf, "*FTL:%d*32B:%d*MCUR:%d*NVEND:%d*DENT:%d*IDLE:%d",
+		r->ReaderOptFeatures.FTLEnabled,
+		r->ReaderOptFeatures.MonetaryFormat32bitEnabled,
+		r->ReaderOptFeatures.MultiCurrEnabled,
+		r->ReaderOptFeatures.NegVendEnabled,
+		r->ReaderOptFeatures.DataEntryEnabled,
+		r->ReaderOptFeatures.AlwaysIdleEnabled);
+	EXT_UART_Transmit_S(buf);
+	EXT_CRLF();
+}
+
+static void DiagPrintCCOpts(void)
+{
+	char buf[48];
+	sprintf(buf, "DIAG:CC*ACCEPT:%04x*DISP:%04x*EXT:%02x",
+		CoinChangerOptions.EnableAcceptCoinsBits,
+		CoinChangerOptions.EnableDispenseCoinsBits,
+		CoinChangerOptions.EnableExtOptionsBits);
+	EXT_UART_Transmit_S(buf);
+	EXT_CRLF();
+}
+
+static void DiagPrintBVOpts(void)
+{
+	char buf[80];
+	sprintf(buf, "DIAG:BV*SEC:%04x*ACCEPT:%04x*ESCROW:%04x*RECYCLE:%04x*MANDISP:%04x*RECEN:%d",
+		BillValidatorOptions.BillSecurityBits,
+		BillValidatorOptions.EnableAcceptBillsBits,
+		BillValidatorOptions.EnableEscrowBillsBits,
+		BillValidatorOptions.EnableRecycleBillsBits,
+		BillValidatorOptions.EnableManualDispenseBillsBits,
+		BillValidatorOptions.EnableBillRecycling);
+	EXT_UART_Transmit_S(buf);
+	EXT_CRLF();
+}
+
+static void DiagPrintCHOpts(uint8_t index)
+{
+	char buf[32];
+	sprintf(buf, "DIAG:CH%d*MANDISP:%04x*EXT:%02x",
+		index + 1,
+		CoinHopperOptions[index].EnableManualDispenseCoinsBits,
+		CoinHopperOptions[index].EnableExtOptionsBits);
+	EXT_UART_Transmit_S(buf);
+	EXT_CRLF();
+}
+
 void ReadVMCData()
 {
 	eeprom_read_block((void*)&VMCData, (const void*)&nv_VMCData, sizeof(VMCData_t));
 	EXT_UART_Transmit_S("SYS*VMCSET*READ*");
-	EXT_UART_Transmit_HEXDUMP("VMCDATA", &VMCData, sizeof(VMCData));
 	EXT_UART_OK();
+	EXT_UART_Transmit_HEXDUMP("VMCDATA", &VMCData, sizeof(VMCData));
+	DiagPrintVMC();
 }
 
 void ReadCashlessPrices()
 {
 	eeprom_read_block((void*)&ReaderOptions, (const void*)&nv_ReaderOptions, sizeof(ReaderOptions));
-	EXT_UART_Transmit_HEXDUMP("READEROPTIONS", &ReaderOptions, sizeof(ReaderOptions));
 	EXT_UART_Transmit_S("SYS*CDSET*READ*");
 	EXT_UART_OK();
+	EXT_UART_Transmit_HEXDUMP("READEROPTIONS", &ReaderOptions, sizeof(ReaderOptions));
+	DiagPrintReaderOpts(0);
+	DiagPrintReaderOpts(1);
 }
 
 void ReadCoinChangerOptions()
 {
 	eeprom_read_block((void*)&CoinChangerOptions, (const void*)&nv_CoinChangerOptions, sizeof(CoinChangerOptions_t));
+	DiagPrintCCOpts();
 	EXT_UART_Transmit_S("SYS*CCSET*READ*");
 	EXT_UART_OK();
 }
@@ -97,6 +173,7 @@ void ResetCoinChangerOptions()
 void ReadBVOptions()
 {
 	eeprom_read_block((void*)&BillValidatorOptions, (const void*)&nv_BillValidatorOptions, sizeof(BillValidatorOptions_t));
+	DiagPrintBVOpts();
 	EXT_UART_Transmit_S("SYS*BVSET*READ*");
 	EXT_UART_OK();
 }
@@ -120,6 +197,8 @@ void ResetBVOptions()
 void ReadCoinHoppersOptions()
 {
 	eeprom_read_block((void*)&CoinHopperOptions, (const void*)&nv_CoinHopperOptions, sizeof(CoinHopperOptions));
+	DiagPrintCHOpts(0);
+	DiagPrintCHOpts(1);
 	EXT_UART_Transmit_S("SYS*CHSET*READ*");
 	EXT_UART_OK();
 }

@@ -345,7 +345,7 @@ void MDB_Send(uint8_t data[], uint8_t len)
     MDB_BUFFER_COUNT = 0;
     MDB_RESPONSE_TYPE = MDB_RESP_DATA; /* default; overwritten by MDB_read() */
 
-	if (len > 4) {
+	if (0 && len > 4) {
 		EXT_UART_Transmit_HEXDUMP("MDBSEND", data, len);
 	}
 
