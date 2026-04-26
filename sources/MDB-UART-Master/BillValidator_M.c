@@ -890,6 +890,38 @@ void BillValidatorEnableBillType(uint8_t BillType, uint8_t EnableAccept, uint8_t
 	EXT_UART_OK();
 }
 
+/* Emit the suffix after a "BV*<verb>*" prefix has been written, classifying
+ * the reply: OK / NAK / FAIL*<reason>. The prefix is the caller's responsibility. */
+static void BillValidatorReportBillTypeReply(uint8_t isEnable)
+{
+	if (!MDBReceiveErrorFlag) {
+		BillValidatorDevice.OfflinePollsCount = 10;
+		if (MDB_RESPONSE_TYPE == MDB_RESP_ACK) {
+			EXT_UART_OK();
+			if (BillValidatorOptions.EnableBillRecycling && BillValidatorIDData.BillRecyclingSupported) {
+				if (isEnable) BillValidatorRecyclerEnable();
+				else          BillValidatorRecyclerDisable();
+			}
+			return;
+		}
+		if (MDB_RESPONSE_TYPE == MDB_RESP_NAK) {
+			EXT_UART_NAK();
+			return;
+		}
+		EXT_UART_Transmit_S("FAIL*UNEXPECTED\r\n");
+		return;
+	}
+	switch (MDBReceiveErrorFlag) {
+		case 2:  EXT_UART_Transmit_S("FAIL*TIMEOUT\r\n");  break;
+		case 3:  EXT_UART_Transmit_S("FAIL*OVERRUN\r\n");  break;
+		case 5:  EXT_UART_Transmit_S("FAIL*CHKSUM\r\n");   break;
+		case 10: EXT_UART_Transmit_S("FAIL*UARTERR1\r\n"); break;
+		case 11: EXT_UART_Transmit_S("FAIL*UARTERR2\r\n"); break;
+		default: EXT_UART_FAIL();                          break;
+	}
+	if (BillValidatorDevice.OfflinePollsCount > 0) BillValidatorDevice.OfflinePollsCount--;
+}
+
 void BillValidatorEnableAcceptBills()
 {
 	uint8_t cmd[6];
@@ -904,18 +936,7 @@ void BillValidatorEnableAcceptBills()
 		MDB_read();
 	}
 	EXT_UART_Transmit_S("BV*ENABLE*");
-	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
-	{
-		BillValidatorDevice.OfflinePollsCount = 10;
-		if (MDB_RESPONSE_TYPE == MDB_RESP_ACK)
-		{
-			EXT_UART_OK();
-			if (BillValidatorOptions.EnableBillRecycling && BillValidatorIDData.BillRecyclingSupported) BillValidatorRecyclerEnable();
-			return;
-		}
-	}
-	EXT_UART_FAIL();
-	if (BillValidatorDevice.OfflinePollsCount > 0) BillValidatorDevice.OfflinePollsCount--;
+	BillValidatorReportBillTypeReply(1);
 }
 
 void BillValidatorDisableAcceptBills()
@@ -932,18 +953,7 @@ void BillValidatorDisableAcceptBills()
 		MDB_read();
 	}
 	EXT_UART_Transmit_S("BV*DISABLE*");
-	if ((MDBReceiveComplete) && (!MDBReceiveErrorFlag))
-	{
-		BillValidatorDevice.OfflinePollsCount = 10;
-		if (MDB_RESPONSE_TYPE == MDB_RESP_ACK)
-		{
-			EXT_UART_OK();
-			if (BillValidatorOptions.EnableBillRecycling && BillValidatorIDData.BillRecyclingSupported) BillValidatorRecyclerDisable();
-			return;
-		}
-	}
-	EXT_UART_FAIL();
-	if (BillValidatorDevice.OfflinePollsCount > 0) BillValidatorDevice.OfflinePollsCount--;
+	BillValidatorReportBillTypeReply(0);
 }
 
 void BillValidatorConfigFeatures(uint8_t RecyclerEnable)
